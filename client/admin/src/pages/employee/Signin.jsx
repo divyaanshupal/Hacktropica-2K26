@@ -6,7 +6,7 @@ import axios from 'axios';
 
 // Replace with your MongoDB collection endpoint or API base URL
 // In a real app, this should be in an environment variable
-const MONGO_API_URL = import.meta.env.VITE_MONGO_API_URL || 'mongodb+srv://dbUser7:zZfbF6xOfGI9MoaK@cluster0.2vj0jih.mongodb.net/?appName=Cluster0';
+const MONGO_API_URL = import.meta.env.VITE_MONGO_API_URL || '';
 
 export default function Signin() {
   const [email, setEmail] = useState('');
