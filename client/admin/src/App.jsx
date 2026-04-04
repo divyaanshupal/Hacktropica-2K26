@@ -8,18 +8,20 @@ import Team from './pages/admin/Team'
 import Meetings from './pages/admin/Meetings'
 import Chat from './pages/admin/Chat'
 import Signin from './pages/employee/Signin'
+import InteractiveWorkspace from './pages/employee/Employee'
 import { initialTasks, meetings } from './data/mockData'
 
 function AppContent() {
   const [collapsed, setCollapsed] = useState(false)
   const [tasks, setTasks] = useState(initialTasks)
   const location = useLocation()
-  const isEmployee = location.pathname.startsWith('/employee')
+  
   const isSignin = location.pathname === '/signin'
+  const isEmployee = location.pathname.startsWith('/employee')
 
   return (
     <div className="flex bg-zinc-950 text-white min-h-screen overflow-hidden text-sm w-full">
-      {!isSignin && (isEmployee ? (
+      {isSignin ? null : (isEmployee ? (
         <EmployeeSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       ) : (
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
@@ -34,7 +36,7 @@ function AppContent() {
           <Route path="/team" element={<Team tasks={tasks} />} />
           <Route path="/meetings" element={<Meetings />} />
           <Route path="/chat" element={<Chat />} />
-          <Route path="/employee" element={<Signin />} />
+          <Route path="/employee" element={<InteractiveWorkspace />} />
         </Routes>
         </div>
       </main>
