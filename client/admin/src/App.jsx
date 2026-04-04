@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import EmployeeSidebar from './components/EmployeeSidebar'
 import Dashboard from './pages/admin/Dashboard'
@@ -18,6 +18,15 @@ function AppContent() {
   
   const isSignin = location.pathname === '/signin'
   const isEmployee = location.pathname.startsWith('/employee')
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Auth Guard: If trying to access /employee and no login data exists, send to signin
+    const user = localStorage.getItem('employeeData');
+    if (isEmployee && !user) {
+      navigate('/signin');
+    }
+  }, [isEmployee, navigate]);
 
   return (
     <div className="flex bg-zinc-950 text-white min-h-screen overflow-hidden text-sm w-full">
