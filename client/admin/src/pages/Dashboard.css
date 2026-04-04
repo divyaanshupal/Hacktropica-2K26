@@ -1,0 +1,164 @@
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.dashboard__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-2xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xl);
+}
+
+.dashboard__stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-lg);
+}
+
+.dashboard__grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: var(--space-2xl);
+}
+
+.dashboard__section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-lg);
+}
+
+.dashboard__section-title {
+    font-size: var(--font-size-md);
+    font-weight: 700;
+}
+
+.dashboard__section-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-xs);
+    color: var(--accent-primary);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+
+.dashboard__section-link:hover {
+    color: var(--accent-primary-hover);
+    gap: 8px;
+}
+
+.dashboard__tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.dashboard__sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xl);
+}
+
+/* Quick Stats / Sprint Progress */
+.dashboard__quick-stats {
+    padding: var(--space-xl);
+}
+
+.dashboard__quick-stats-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    margin-bottom: var(--space-xl);
+    color: var(--text-primary);
+}
+
+.dashboard__progress {
+    margin-bottom: var(--space-xl);
+}
+
+.dashboard__progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
+    font-weight: 500;
+}
+
+.dashboard__progress-track {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.dashboard__progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--color-success));
+    border-radius: var(--radius-full);
+}
+
+.dashboard__status-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.dashboard__status-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.dashboard__status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dashboard__status-label {
+    flex: 1;
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+.dashboard__status-count {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.dashboard__meetings-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+@media (max-width: 1200px) {
+    .dashboard__stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard__stats {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard__content {
+        padding: var(--space-lg);
+    }
+}
