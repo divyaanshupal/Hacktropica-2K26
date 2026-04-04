@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Bot, User, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Send, Bot, User, Sparkles } from 'lucide-react';
 import { chatResponses, quickReplies } from '../data/mockData';
-import './ChatBot.css';
 
 function getResponse(message) {
     const lower = message.toLowerCase();
@@ -24,7 +23,6 @@ function getResponse(message) {
 }
 
 export default function ChatBot() {
-    const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         { id: 1, type: 'bot', text: "Hello! 👋 I'm your ProductFlow assistant. Ask me about tasks, team, meetings, or performance!" },
     ]);
@@ -63,123 +61,88 @@ export default function ChatBot() {
     };
 
     return (
-        <>
-            <AnimatePresence>
-                {isOpen && (
+        <div className="fixed bottom-6 right-6 w-80 bg-[#1c1f2e] border border-white/10 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden">
+            <div className="bg-linear-to-r from-indigo-500/20 to-cyan-500/20 p-4 border-b border-white/10 flex items-center justify-between backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                    <div className="bg-indigo-500/20 text-indigo-400 p-2 rounded-lg">
+                        <Sparkles size={18} />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-white text-sm">ProductFlow AI</h3>
+                        <span className="text-xs text-emerald-400 font-medium">● Online</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex-1 h-80 overflow-y-auto p-4 flex flex-col gap-4 scrollbar-thin scrollbar-thumb-white/10">
+                {messages.map((msg) => (
                     <motion.div
-                        className="chatbot"
-                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        key={msg.id}
+                        className={`flex gap-3 max-w-[85%] ${msg.type === 'bot' ? 'self-start' : 'self-end flex-row-reverse'}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
                     >
-                        <div className="chatbot__header">
-                            <div className="chatbot__header-left">
-                                <div className="chatbot__header-icon">
-                                    <Sparkles size={18} />
-                                </div>
-                                <div>
-                                    <h3 className="chatbot__header-title">ProductFlow AI</h3>
-                                    <span className="chatbot__header-status">● Online</span>
-                                </div>
-                            </div>
-                            <button className="chatbot__close" onClick={() => setIsOpen(false)}>
-                                <X size={18} />
-                            </button>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${msg.type === 'bot' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-700 text-slate-300'}`}>
+                            {msg.type === 'bot' ? <Bot size={14} /> : <User size={14} />}
                         </div>
-
-                        <div className="chatbot__messages">
-                            {messages.map((msg) => (
-                                <motion.div
-                                    key={msg.id}
-                                    className={`chatbot__message chatbot__message--${msg.type}`}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                >
-                                    <div className="chatbot__message-avatar">
-                                        {msg.type === 'bot' ? <Bot size={14} /> : <User size={14} />}
-                                    </div>
-                                    <div className="chatbot__message-bubble">
-                                        <div dangerouslySetInnerHTML={{
-                                            __html: msg.text
-                                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                                .replace(/\n/g, '<br/>')
-                                                .replace(/•/g, '<span style="color: #06b6d4">•</span>')
-                                        }} />
-                                    </div>
-                                </motion.div>
-                            ))}
-
-                            {isTyping && (
-                                <motion.div
-                                    className="chatbot__message chatbot__message--bot"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                >
-                                    <div className="chatbot__message-avatar"><Bot size={14} /></div>
-                                    <div className="chatbot__message-bubble chatbot__typing">
-                                        <span className="chatbot__typing-dot" />
-                                        <span className="chatbot__typing-dot" />
-                                        <span className="chatbot__typing-dot" />
-                                    </div>
-                                </motion.div>
-                            )}
-                            <div ref={messagesEndRef} />
+                        <div className={`p-3 rounded-2xl text-sm leading-relaxed ${msg.type === 'bot' ? 'bg-white/5 text-slate-200 rounded-tl-sm' : 'bg-indigo-500 text-white rounded-tr-sm'}`}>
+                            <div dangerouslySetInnerHTML={{
+                                __html: msg.text
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                    .replace(/\n/g, '<br/>')
+                                    .replace(/•/g, '<span style="color: #06b6d4">•</span>')
+                            }} />
                         </div>
+                    </motion.div>
+                ))}
 
-                        <div className="chatbot__quick-replies">
-                            {quickReplies.map((reply) => (
-                                <button
-                                    key={reply}
-                                    className="chatbot__quick-reply"
-                                    onClick={() => sendMessage(reply)}
-                                >
-                                    {reply}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="chatbot__input-area">
-                            <input
-                                type="text"
-                                className="chatbot__input"
-                                placeholder="Ask me anything..."
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                            />
-                            <button
-                                className="chatbot__send"
-                                onClick={() => sendMessage()}
-                                disabled={!input.trim()}
-                            >
-                                <Send size={16} />
-                            </button>
+                {isTyping && (
+                    <motion.div
+                        className="flex gap-3 max-w-[85%] self-start"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                    >
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-indigo-500/20 text-indigo-400"><Bot size={14} /></div>
+                        <div className="p-3 bg-white/5 text-slate-200 rounded-2xl rounded-tl-sm flex gap-1 items-center px-4">
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                            <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
                         </div>
                     </motion.div>
                 )}
-            </AnimatePresence>
+                <div ref={messagesEndRef} />
+            </div>
 
-            <motion.button
-                className={`chatbot__fab ${isOpen ? 'chatbot__fab--active' : ''}`}
-                onClick={() => setIsOpen(!isOpen)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-            >
-                <AnimatePresence mode="wait">
-                    {isOpen ? (
-                        <motion.div key="close" initial={{ rotate: -90 }} animate={{ rotate: 0 }} exit={{ rotate: 90 }}>
-                            <X size={22} />
-                        </motion.div>
-                    ) : (
-                        <motion.div key="chat" initial={{ rotate: 90 }} animate={{ rotate: 0 }} exit={{ rotate: -90 }}>
-                            <MessageCircle size={22} />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-                {!isOpen && <span className="chatbot__fab-pulse" />}
-            </motion.button>
-        </>
+            <div className="flex gap-2 p-4 pt-0 overflow-x-auto scrollbar-none">
+                {quickReplies.map((reply) => (
+                    <button
+                        key={reply}
+                        className="whitespace-nowrap px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-xs font-medium text-slate-300 transition-colors cursor-pointer"
+                        onClick={() => sendMessage(reply)}
+                    >
+                        {reply}
+                    </button>
+                ))}
+            </div>
+
+            <div className="p-4 border-t border-white/10 flex gap-2 items-center bg-black/20">
+                <input
+                    type="text"
+                    className="flex-1 bg-transparent border-none text-sm text-white focus:outline-none placeholder:text-slate-500"
+                    placeholder="Ask me anything..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                />
+                <button
+                    className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-lg transition-colors disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-indigo-400 cursor-pointer"
+                    onClick={() => sendMessage()}
+                    disabled={!input.trim()}
+                >
+                    <Send size={16} />
+                </button>
+            </div>
+        </div>
     );
 }
