@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Clock, AlertCircle } from 'lucide-react';
-import { teamMembers } from '../data/mockData';
 
 const priorityConfig = {
+    critical: { label: 'Critical', style: 'bg-red-500 text-white border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.5)]' },
     high: { label: 'High', style: 'bg-rose-500/10 text-rose-500 border-rose-500/20' },
     medium: { label: 'Medium', style: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
     low: { label: 'Low', style: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
@@ -16,25 +16,39 @@ const statusConfig = {
     'done': { label: 'Done', style: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
 };
 
-export default function TaskCard({ task, index = 0 }) {
-    const assignee = teamMembers.find(m => m.id === task.assigneeId);
-    const priority = priorityConfig[task.priority];
-    const status = statusConfig[task.status];
+export default function TaskCard({ task, index = 0, employees = [] }) {
+    const assignee = employees.find(m => m.id === task.assigneeId || m.employeeId === task.assigneeId);
+    const priority = priorityConfig[task.priority] || priorityConfig.low;
+    const status = statusConfig[task.status] || statusConfig.todo;
     const dueDate = new Date(task.dueDate);
     const today = new Date();
     const isOverdue = dueDate < today && task.status !== 'done';
     const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
 
+    const isCritical = task.priority === 'critical';
+
     return (
         <motion.div
-            className="flex flex-col gap-4 p-5 md:p-6 bg-zinc-900 border border-zinc-800 rounded-2xl cursor-pointer shadow-sm hover:border-zinc-700 hover:shadow-md transition-all relative overflow-hidden group"
+            className={`flex flex-col gap-4 p-5 md:p-6 bg-zinc-900 border rounded-2xl cursor-pointer shadow-sm hover:border-zinc-700 hover:shadow-md transition-all relative overflow-hidden group ${isCritical ? 'border-red-500/50' : 'border-zinc-800'}`}
             initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
+            animate={isCritical ? { 
+                opacity: 1, 
+                y: 0,
+                boxShadow: [
+                    "0 0 0px rgba(239, 68, 68, 0)",
+                    "0 0 20px rgba(239, 68, 68, 0.3)",
+                    "0 0 0px rgba(239, 68, 68, 0)"
+                ]
+            } : { opacity: 1, y: 0 }}
+            transition={isCritical ? {
+                opacity: { duration: 0.3, delay: index * 0.05 },
+                y: { duration: 0.3, delay: index * 0.05 },
+                boxShadow: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+            } : { duration: 0.3, delay: index * 0.05 }}
             whileHover={{ y: -2 }}
             layout
         >
-            <div className="absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500" />
+            <div className={`absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity ${isCritical ? 'bg-red-500' : 'bg-blue-500'}`} />
             <div className="flex justify-between items-start gap-4">
                 <div className="flex gap-2">
                     <span className={`inline-flex py-0.5 px-2.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 uppercase tracking-widest ${priority.style}`}>

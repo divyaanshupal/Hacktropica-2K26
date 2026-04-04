@@ -5,15 +5,15 @@ import TopBar from '../../components/TopBar';
 import TaskCard from '../../components/TaskCard';
 import AddTaskModal from '../../components/AddTaskModal';
 
-const statusTabs = [
+const priorityTabs = [
     { key: 'all', label: 'All', icon: null },
-    { key: 'todo', label: 'To Do', color: '#3b82f6' },
-    { key: 'in-progress', label: 'In Progress', color: '#f59e0b' },
-    { key: 'review', label: 'Review', color: '#8b5cf6' },
-    { key: 'done', label: 'Done', color: '#10b981' },
+    { key: 'low', label: 'Low', color: '#10b981' },
+    { key: 'medium', label: 'Medium', color: '#f59e0b' },
+    { key: 'high', label: 'High', color: '#ef4444' },
+    { key: 'critical', label: 'Critical', color: '#dc2626' },
 ];
 
-export default function Tasks({ tasks, setTasks }) {
+export default function Tasks({ tasks, setTasks, employees }) {
     const [activeTab, setActiveTab] = useState('all');
     const [search, setSearch] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,12 +21,12 @@ export default function Tasks({ tasks, setTasks }) {
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
-            const matchesStatus = activeTab === 'all' || task.status === activeTab;
+            const matchesTab = activeTab === 'all' || task.priority === activeTab;
             const matchesSearch = !search ||
                 task.title.toLowerCase().includes(search.toLowerCase()) ||
                 task.description.toLowerCase().includes(search.toLowerCase()) ||
-                task.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
-            return matchesStatus && matchesSearch;
+                (task.tags && task.tags.some(t => t.toLowerCase().includes(search.toLowerCase())));
+            return matchesTab && matchesSearch;
         });
     }, [tasks, activeTab, search]);
 
@@ -36,25 +36,25 @@ export default function Tasks({ tasks, setTasks }) {
 
     const getTabCount = (key) => {
         if (key === 'all') return tasks.length;
-        return tasks.filter(t => t.status === key).length;
+        return tasks.filter(t => t.priority === key).length;
     };
 
     return (
         <div className="w-full flex-col">
-            <TopBar title="Tasks" subtitle={`${tasks.length} total tasks across your team`} />
+            <TopBar title="Tasks" subtitle={`${tasks.length} total tasks prioritized by urgency`} />
 
             <div className="flex flex-col gap-6">
                 {/* Controls */}
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 border-b border-zinc-800/80 pb-6">
                     <div className="flex gap-2 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 hide-scrollbar">
-                        {statusTabs.map(tab => (
+                        {priorityTabs.map(tab => (
                             <button
                                 key={tab.key}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap border ${activeTab === tab.key ? 'bg-zinc-900 border-zinc-700 text-white shadow-sm' : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}
                                 onClick={() => setActiveTab(tab.key)}
                             >
                                 {tab.color && (
-                                    <span className="w-2 h-2 rounded-full shadow-inner" style={{ background: tab.color }} />
+                                    <span className={`w-2.5 h-2.5 rounded-full ${tab.key === 'critical' ? 'animate-pulse shadow-[0_0_8px_#dc2626]' : 'shadow-inner'}`} style={{ background: tab.color }} />
                                 )}
                                 {tab.label}
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 ${activeTab === tab.key ? 'text-zinc-300' : 'text-zinc-500'}`}>{getTabCount(tab.key)}</span>
@@ -100,25 +100,25 @@ export default function Tasks({ tasks, setTasks }) {
                 {/* Kanban View */}
                 {viewMode === 'grid' && activeTab === 'all' ? (
                     <div className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar items-start min-h-[60vh]">
-                        {statusTabs.filter(t => t.key !== 'all').map(status => {
-                            const statusTasks = tasks.filter(t => t.status === status.key);
+                        {priorityTabs.filter(t => t.key !== 'all').map(priority => {
+                            const priorityTasks = tasks.filter(t => t.priority === priority.key);
                             return (
-                                <div key={status.key} className="flex flex-col w-[320px] shrink-0 bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-4">
+                                <div key={priority.key} className={`flex flex-col w-[320px] shrink-0 bg-zinc-900/30 border rounded-2xl p-4 ${priority.key === 'critical' ? 'border-red-500/30 bg-red-950/5' : 'border-zinc-800/50'}`}>
                                     <div className="flex items-center gap-3 mb-4 px-2">
-                                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: status.color, boxShadow: `0 0 8px ${status.color}80` }} />
-                                        <h3 className="text-sm font-bold text-white uppercase tracking-widest">{status.label}</h3>
-                                        <span className="text-[10px] font-bold text-zinc-500 bg-zinc-800 px-2.5 py-0.5 rounded-full ml-auto">{statusTasks.length}</span>
+                                        <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${priority.key === 'critical' ? 'animate-pulse' : ''}`} style={{ background: priority.color, boxShadow: `0 0 8px ${priority.color}80` }} />
+                                        <h3 className="text-sm font-bold text-white uppercase tracking-widest">{priority.label}</h3>
+                                        <span className="text-[10px] font-bold text-zinc-500 bg-zinc-800 px-2.5 py-0.5 rounded-full ml-auto">{priorityTasks.length}</span>
                                     </div>
                                     <div className="flex flex-col gap-3 min-h-[100px]">
                                         <AnimatePresence>
-                                            {statusTasks.map((task, i) => (
-                                                <TaskCard key={task.id} task={task} index={i} />
+                                            {priorityTasks.map((task, i) => (
+                                                <TaskCard key={task.id} task={task} index={i} employees={employees} />
                                             ))}
                                         </AnimatePresence>
-                                        {statusTasks.length === 0 && (
+                                        {priorityTasks.length === 0 && (
                                             <div className="flex flex-col items-center justify-center h-32 gap-3 text-zinc-600 border-2 border-dashed border-zinc-800 rounded-xl">
                                                 <CheckCircle2 size={24} className="opacity-50" />
-                                                <span className="text-xs font-semibold uppercase tracking-widest">No tasks</span>
+                                                <span className="text-xs font-semibold uppercase tracking-widest">Clear</span>
                                             </div>
                                         )}
                                     </div>
@@ -136,7 +136,7 @@ export default function Tasks({ tasks, setTasks }) {
                     >
                         <AnimatePresence>
                             {filteredTasks.map((task, i) => (
-                                <TaskCard key={task.id} task={task} index={i} />
+                                <TaskCard key={task.id} task={task} index={i} employees={employees} />
                             ))}
                         </AnimatePresence>
                         {filteredTasks.length === 0 && (
