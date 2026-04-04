@@ -1,0 +1,115 @@
+.team-member-card {
+    padding: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    cursor: pointer;
+}
+
+.team-member-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.team-member-card__avatar {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: white;
+}
+
+.team-member-card__status {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-card);
+}
+
+.team-member-card__status--online {
+    background: var(--color-success);
+}
+
+.team-member-card__status--away {
+    background: var(--color-warning);
+}
+
+.team-member-card__status--offline {
+    background: var(--text-muted);
+}
+
+.team-member-card__chevron {
+    color: var(--text-muted);
+    transition: all var(--transition-fast);
+}
+
+.team-member-card:hover .team-member-card__chevron {
+    color: var(--text-secondary);
+    transform: translateX(2px);
+}
+
+.team-member-card__info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.team-member-card__name {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.team-member-card__role,
+.team-member-card__email {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+}
+
+.team-member-card__stats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.team-member-card__workload {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.team-member-card__workload-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+.team-member-card__workload-value {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.team-member-card__bar-track {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.team-member-card__bar-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+}
