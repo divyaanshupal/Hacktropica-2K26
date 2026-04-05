@@ -1,120 +1,66 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import Sidebar from './components/Sidebar'
+import EmployeeSidebar from './components/EmployeeSidebar'
+import Dashboard from './pages/admin/Dashboard'
+import Tasks from './pages/admin/Tasks'
+import Team from './pages/admin/Team'
+import Meetings from './pages/admin/Meetings'
+import Chat from './pages/admin/Chat'
+import Signin from './pages/employee/Signin'
+import InteractiveWorkspace from './pages/employee/Employee'
+import EmployeeTasks from './pages/employee/Tasks'
+import { initialTasks, meetings } from './data/mockData'
 
-function App() {
-  const [count, setCount] = useState(0)
+function AppContent() {
+  const [collapsed, setCollapsed] = useState(false)
+  const [tasks, setTasks] = useState(initialTasks)
+  const [taskQueue, setTaskQueue] = useState([]) // State for employee tasks
+  const location = useLocation()
+  
+  const isSignin = location.pathname === '/signin'
+  const isEmployee = location.pathname.startsWith('/employee')
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Auth Guard: If trying to access /employee and no login data exists, send to signin
+    const user = localStorage.getItem('employeeData');
+    if (isEmployee && !user) {
+      navigate('/signin');
+    }
+  }, [isEmployee, navigate]);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="flex bg-zinc-950 text-white min-h-screen overflow-hidden text-sm w-full">
+      {isSignin ? null : (isEmployee ? (
+        <EmployeeSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      ) : (
+        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      ))}
+      
+      <main className="flex-1 overflow-y-auto flex flex-col items-center relative">
+        <div className={`w-full ${isSignin ? '' : 'max-w-7xl px-6 md:px-10 py-6 md:py-10 mx-auto'}`}>
+        <Routes>
+          <Route path="/signin" element={<Signin />} />
+          <Route path="/" element={<Dashboard tasks={tasks} meetings={meetings} />} />
+          <Route path="/tasks" element={<Tasks tasks={tasks} setTasks={setTasks} />} />
+          <Route path="/team" element={<Team tasks={tasks} />} />
+          <Route path="/meetings" element={<Meetings />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/employee" element={<InteractiveWorkspace setTaskQueue={setTaskQueue} taskQueue={taskQueue} />} />
+          <Route path="/employee/tasks" element={<EmployeeTasks taskQueue={taskQueue} />} />
+        </Routes>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </main>
+    </div>
+  )
+}
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   )
 }
 
