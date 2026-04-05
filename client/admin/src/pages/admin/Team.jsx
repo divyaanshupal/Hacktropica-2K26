@@ -82,9 +82,58 @@ export default function Team({ tasks, setTasks, employees }) {
     }, []);
 
     const selectedMember = employees.find(e => e.id === selectedMemberId);
+    
+    // Combine global tasks with employee's own live status data
     const memberTasks = tasks.filter(t => t.assigneeId === selectedMemberId || t.assigneeId === selectedMember?.employeeId);
-    const ongoingTasks = memberTasks.filter(t => t.status !== 'done');
-    const finishedTasks = memberTasks.filter(t => t.status === 'done');
+    
+    // Construct ongoing tasks list
+    const ongoingTasks = [...memberTasks.filter(t => t.status !== 'done')];
+    
+    // If selectedMember has an activeTask that isn't in global tasks, add it
+    if (selectedMember?.activeTask && !ongoingTasks.some(t => t.id === selectedMember.activeTask.id)) {
+        ongoingTasks.unshift({
+            ...selectedMember.activeTask,
+            status: 'in-progress',
+            priority: selectedMember.activeTask.criticality >= 9 ? 'critical' : (selectedMember.activeTask.criticality >= 7 ? 'high' : (selectedMember.activeTask.criticality >= 4 ? 'medium' : 'low')),
+            dueDate: new Date().toISOString() // Placeholder or extract if available
+        });
+    }
+
+    // Add items from employee queue if not already present
+    if (selectedMember?.queue) {
+        selectedMember.queue.forEach(qTask => {
+            if (!ongoingTasks.some(t => t.id === (qTask.issueId || qTask._id))) {
+                ongoingTasks.push({
+                    id: qTask.issueId || qTask._id || Math.random(),
+                    title: qTask.taskTitle,
+                    description: 'From Smart Queue',
+                    status: 'todo',
+                    criticality: qTask.estimatedCriticality,
+                    priority: qTask.estimatedCriticality >= 9 ? 'critical' : (qTask.estimatedCriticality >= 7 ? 'high' : (qTask.estimatedCriticality >= 4 ? 'medium' : 'low')),
+                    dueDate: qTask.addedToQueueAt || new Date().toISOString()
+                });
+            }
+        });
+    }
+
+    // Construct finished tasks list
+    const finishedTasks = [...memberTasks.filter(t => t.status === 'done')];
+    
+    // Add items from employee performance history
+    if (selectedMember?.performance?.history) {
+        selectedMember.performance.history.forEach(hTask => {
+            if (!finishedTasks.some(t => t.id === (hTask.issueId || hTask._id))) {
+                finishedTasks.push({
+                    id: hTask.issueId || hTask._id || Math.random(),
+                    title: hTask.taskTitle,
+                    description: 'From Mission History',
+                    status: 'done',
+                    priority: 'low',
+                    dueDate: hTask.resolvedAt || new Date().toISOString()
+                });
+            }
+        });
+    }
 
     const activeAgentsCount = employees.filter(m => m.status === 'online').length;
     const hasSev1 = tasks.some(t => t.criticality >= 9 && t.status !== 'done');
@@ -204,15 +253,33 @@ export default function Team({ tasks, setTasks, employees }) {
                                         <p className="text-sm font-medium">No agents found in the MongoDB cluster.</p>
                                     </div>
                                 ) : (
-                                    employees.map((member) => (
-                                        <TeamMemberCard
-                                            key={member.id}
-                                            member={member}
-                                            sector={member.role}
-                                            tasks={tasks.filter(t => (t.assigneeId === member.id || t.assigneeId === member.employeeId) && t.status !== 'done')}
-                                            onClick={() => setSelectedMemberId(member.id)}
-                                        />
-                                    ))
+                                    employees.map((member) => {
+                                        // Count pending tasks from both global state and local queue
+                                        const globalPending = tasks.filter(t => (t.assigneeId === member.id || t.assigneeId === member.employeeId) && t.status !== 'done');
+                                        const hasInGlobal = (id) => globalPending.some(gt => gt.id === id);
+                                        
+                                        const localPending = [];
+                                        if (member.activeTask && !hasInGlobal(member.activeTask.id)) {
+                                            localPending.push(member.activeTask);
+                                        }
+                                        if (member.queue) {
+                                            member.queue.forEach(qt => {
+                                                if (!hasInGlobal(qt.issueId)) {
+                                                    localPending.push({ id: qt.issueId, title: qt.taskTitle, criticality: qt.estimatedCriticality });
+                                                }
+                                            });
+                                        }
+
+                                        return (
+                                            <TeamMemberCard
+                                                key={member.id}
+                                                member={member}
+                                                sector={member.role}
+                                                tasks={[...globalPending, ...localPending]}
+                                                onClick={() => setSelectedMemberId(member.id)}
+                                            />
+                                        );
+                                    })
                                 )}
                             </motion.div>
                         )}

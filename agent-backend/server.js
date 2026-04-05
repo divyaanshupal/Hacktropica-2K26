@@ -12,9 +12,9 @@ const app = express();
 app.use(express.json());
 
 app.use(cors({
-  origin: "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  credentials: true
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    credentials: false
 }));
 
 app.use('/api', apiRoutes);
@@ -167,8 +167,8 @@ ${JSON.stringify(availableEmployees)}
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
         console.log("🟢 MongoDB Connected");
-        app.listen(process.env.PORT || 3000, () =>
-            console.log(`🚀 Server running on port ${process.env.PORT || 3000}`)
+        app.listen(process.env.PORT || 5000, () =>
+            console.log(`🚀 Server running on port ${process.env.PORT || 5000}`)
         );
     })
     .catch(err => console.error("🔴 DB Error:", err));

@@ -103,7 +103,16 @@ router.get('/employees', async (req, res) => {
 // --- GET ALL TASKS ---
 router.get('/tasks', async (req, res) => {
   try {
-    const tasks = await Task.find({});
+    const rawTasks = await Task.find({}).sort({ createdAt: -1 });
+    // Sanitize tasks for the frontend
+    const tasks = rawTasks.map(t => {
+      const task = t.toObject();
+      if (task.assignedTo && task.assignedTo.length > 0 && typeof task.assignedTo[0] === 'object') {
+          // If the AI accidentally saved a full object or EJSON $oid
+          task.assignedTo[0] = task.assignedTo[0].$oid || task.assignedTo[0]._id || task.assignedTo[0];
+      }
+      return task;
+    });
     res.status(200).json(tasks);
   } catch (error) {
     console.error('Error fetching tasks:', error);

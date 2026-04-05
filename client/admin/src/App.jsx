@@ -32,8 +32,22 @@ function AppContent() {
           fetchEmployees(),
           fetchTasks()
         ])
-        setEmployees(empData.map(mapEmployeeData))
-        setTasks(taskData.map(mapTaskData))
+        console.log("⚡ FETCH SUCCESS: Employees =", empData.length, "Tasks =", taskData.length);
+        
+        // Map data with individual try-catch to prevent a single bad doc from crashing everything
+        const mappedEmployees = empData.map(e => {
+          try { return mapEmployeeData(e); } 
+          catch (err) { console.error("Employee Mapping Error:", err, e); return null; }
+        }).filter(Boolean);
+
+        const mappedTasks = taskData.map(t => {
+          try { return mapTaskData(t); } 
+          catch (err) { console.error("Task Mapping Error:", err, t); return null; }
+        }).filter(Boolean);
+
+        setEmployees(mappedEmployees);
+        setTasks(mappedTasks);
+        console.log("⚡ MAPPED: Employees =", mappedEmployees.length, "Tasks =", mappedTasks.length);
       } catch (error) {
         console.error("Initialization error:", error)
       } finally {
