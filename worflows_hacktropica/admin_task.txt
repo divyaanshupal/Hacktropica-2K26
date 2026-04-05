@@ -1,0 +1,154 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin-agent",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "97d35a5f-b872-4f0b-b40b-f39c617b155c",
+      "name": "Admin Command Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -768,
+        -128
+      ],
+      "webhookId": "04632f32-5bb2-4859-aed3-45e36680316c"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a task triaging assistant. Extract task details from the user message and return ONLY a JSON object.\n\nCategories for \"domain\":\n\"AI & Machine Learning\", \"Cybersecurity\", \"Backend Developer\", \"Frontend Developer\", \"DevOps\", \"Cloud\"\n\nCategories for \"priority\":\n\"low\", \"medium\", \"high\", \"critical\"\n\nUser Message: > {{ $json.body.message }}\n\nRequired JSON Format:\n{\n\"taskContext\": \"A brief, professional summary of the task\",\n\"domain\": \"One of the specific domains listed above\",\n\"priority\": \"One of the specific priorities listed above\"\n}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -512,
+        -224
+      ],
+      "id": "8851a794-398a-47f1-9d56-696fbab3d30b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hacktropia.app.n8n.cloud/webhook/assign-task",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "taskContext",
+              "value": "={{ $json.output.taskContext }}"
+            },
+            {
+              "name": "domain",
+              "value": "={{ $json.output.domain }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.output.priority }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -96,
+        -256
+      ],
+      "id": "eb8b3012-a5f2-4740-874e-804f1041ee77",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "model": "mistral-medium",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        0
+      ],
+      "id": "e42c4b0d-0122-420d-8c88-07b66cff0c24",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "aNdhW8HNa2rO0scE",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"taskContext\": \"Optimize the backend database queries\",\n  \"domain\": \"Backend Developer\",\n  \"priority\": \"medium\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        0
+      ],
+      "id": "667e18cf-9111-426e-8e22-2d902e9c7ae3",
+      "name": "Structured Output Parser"
+    }
+  ],
+  "connections": {
+    "Admin Command Webhook": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33e6112248391fa02423609c7b9af197a796a1789e7089b69c3801cbb7992472"
+  }
+}
