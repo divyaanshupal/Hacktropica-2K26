@@ -23,7 +23,7 @@ router.get('/employee/live', async (req, res) => {
     }
 
     // 2. Find employee with Mongoose projection
-    // Return ONLY: currentTaskCriticality, activeTaskTitle, activeTaskDescription, activeIssueId, workload.taskQueue
+    // Return ONLY: currentTaskCriticality, activeTaskTitle, activeTaskDescription, activeIssueId, workload.taskQueue, performance.history
     const employee = await Employee.findOne(
       { email },
       {
@@ -32,6 +32,7 @@ router.get('/employee/live', async (req, res) => {
         'liveStatus.activeTaskDescription': 1,
         'liveStatus.activeIssueId': 1,
         'workload.taskQueue': 1,
+        'performance.history': 1, // Added for historical tracking
         _id: 0 // Avoid returning the entire document
       }
     ).lean();
@@ -52,7 +53,12 @@ router.get('/employee/live', async (req, res) => {
         taskTitle: task.taskTitle,
         estimatedCriticality: task.estimatedCriticality,
         addedToQueueAt: task.addedToQueueAt
-      }))
+      })),
+      finishedTasks: (employee.performance?.history || []).map(task => ({
+        issueId: task.issueId,
+        title: task.taskTitle,
+        completedAt: task.resolvedAt
+      })).reverse() // Show newest first
     };
 
     return res.status(200).json(response);
