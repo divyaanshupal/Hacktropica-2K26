@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Filter, LayoutGrid, List, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Filter, LayoutGrid, List, CheckCircle2, Sparkles, Send, Loader2 } from 'lucide-react';
 import TopBar from '../../components/TopBar';
 import TaskCard from '../../components/TaskCard';
 import AddTaskModal from '../../components/AddTaskModal';
@@ -18,6 +18,9 @@ export default function Tasks({ tasks, setTasks, employees }) {
     const [search, setSearch] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewMode, setViewMode] = useState('grid');
+    const [agentQuery, setAgentQuery] = useState('');
+    const [isAgentLoading, setIsAgentLoading] = useState(false);
+    const [agentStatus, setAgentStatus] = useState(null); // 'success', 'error'
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
@@ -39,11 +42,77 @@ export default function Tasks({ tasks, setTasks, employees }) {
         return tasks.filter(t => t.priority === key).length;
     };
 
+    const handleAgentDispatch = async () => {
+        if (!agentQuery.trim()) return;
+        setIsAgentLoading(true);
+        setAgentStatus(null);
+        try {
+            const response = await fetch('https://hacktropia.app.n8n.cloud/webhook/admin-agent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: agentQuery })
+            });
+            if (response.ok) {
+                setAgentStatus('success');
+                setAgentQuery('');
+                setTimeout(() => setAgentStatus(null), 3000);
+            } else {
+                setAgentStatus('error');
+            }
+        } catch (err) {
+            console.error('Agent dispatch error:', err);
+            setAgentStatus('error');
+        } finally {
+            setIsAgentLoading(false);
+        }
+    };
+
     return (
         <div className="w-full flex-col">
             <TopBar title="Tasks" subtitle={`${tasks.length} total tasks prioritized by urgency`} />
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-8">
+                {/* AI Agent Dispatch */}
+                <motion.div 
+                    className="p-6 bg-zinc-900 border border-blue-500/20 rounded-3xl shadow-lg relative overflow-hidden"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                >
+                     <div className="absolute top-0 right-0 p-1 opacity-20"><Sparkles size={120} className="text-blue-500" /></div>
+                     <div className="relative z-10 flex flex-col md:flex-row gap-4 items-end md:items-center">
+                        <div className="flex-1 flex flex-col gap-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 flex items-center gap-2">
+                                <Sparkles size={12} className="animate-pulse" /> AI Agent Dispatch
+                            </label>
+                            <input 
+                                type="text" 
+                                placeholder="Describe the task (e.g. Change landing page color scheme urgently for frontend)"
+                                className="w-full bg-zinc-950/50 border border-zinc-800 focus:border-blue-500/50 outline-none rounded-2xl px-6 py-4 text-white text-base placeholder:text-zinc-600 transition-all font-medium"
+                                value={agentQuery}
+                                onChange={(e) => setAgentQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAgentDispatch()}
+                            />
+                        </div>
+                        <button 
+                            className={`px-8 py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shrink-0 ${isAgentLoading ? 'bg-zinc-800 text-zinc-500 cursor-wait' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20'}`}
+                            onClick={handleAgentDispatch}
+                            disabled={isAgentLoading || !agentQuery.trim()}
+                        >
+                            {isAgentLoading ? (
+                                <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                                <Send size={18} />
+                            )}
+                            Dispatch Agent
+                        </button>
+                     </div>
+                     {agentStatus && (
+                        <div className={`mt-3 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full w-fit ${agentStatus === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                            {agentStatus === 'success' ? 'Task Analyzed & Dispatched Successfully' : 'Failed to reach agent'}
+                        </div>
+                     )}
+                </motion.div>
+
                 {/* Controls */}
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 border-b border-zinc-800/80 pb-6">
                     <div className="flex gap-2 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 hide-scrollbar">
