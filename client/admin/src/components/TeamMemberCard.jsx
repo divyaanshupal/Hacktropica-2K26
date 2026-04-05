@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Activity, ListTodo } from 'lucide-react';
 
-export default function TeamMemberCard({ member, sector, tasks }) {
+export default function TeamMemberCard({ member, sector, tasks, onClick }) {
     const sortedTasks = [...tasks].sort((a, b) => (b.criticality || 0) - (a.criticality || 0));
     const activeTask = sortedTasks[0];
     const queuedTasks = sortedTasks.slice(1);
@@ -12,10 +12,13 @@ export default function TeamMemberCard({ member, sector, tasks }) {
 
     return (
         <motion.div
-            className={`flex flex-col p-6 bg-zinc-900 border rounded-2xl relative overflow-hidden transition-all duration-300 shadow-sm ${isCritical ? 'border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.08)]' : 'border-zinc-800'}`}
+            className={`flex flex-col p-6 bg-zinc-900 border rounded-2xl relative overflow-hidden transition-all duration-300 shadow-sm cursor-pointer hover:scale-[1.01] active:scale-[0.99] group ${isCritical ? 'border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.08)]' : 'border-zinc-800'}`}
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
+            onClick={onClick}
         >
+            <div className={`absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity ${isCritical ? 'bg-red-500' : 'bg-blue-500'}`} />
+            
             <div className="flex justify-between items-center pb-5 border-b border-zinc-800/60 mb-5">
                 <div className="flex items-center gap-4">
                     <div className="relative">
