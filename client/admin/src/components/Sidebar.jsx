@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ListTodo, Users, Calendar, ChevronLeft, ChevronRight, Zap, MessageCircle } from 'lucide-react';
 
 const navItems = [
-    { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/tasks', icon: ListTodo, label: 'Tasks' },
     { path: '/team', icon: Users, label: 'Team Mission Control' },
     { path: '/meetings', icon: Calendar, label: 'Meetings' },
@@ -50,7 +50,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 </button>
 
                 <div className={`flex items-center gap-3 p-2 rounded-xl bg-zinc-950 border border-zinc-800 ${collapsed ? 'justify-center' : 'justify-start'}`}>
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold text-xs shrink-0">DK</div>
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-purple-500 text-white font-bold text-xs shrink-0">DK</div>
                     {!collapsed && (
                         <div className="flex flex-col min-w-0">
                             <span className="text-sm font-semibold text-white truncate">Divyanshu K.</span>

@@ -11,6 +11,7 @@ import Signin from './pages/employee/Signin'
 import InteractiveWorkspace from './pages/employee/Employee'
 import { meetings as mockMeetings } from './data/mockData'
 import { fetchEmployees, fetchTasks, mapEmployeeData, mapTaskData } from './services/api'
+import Landing from './pages/Landing'
 import { Loader2 } from 'lucide-react'
 import EmployeeTasks from './pages/employee/Tasks'
 import { initialTasks, meetings } from './data/mockData'
@@ -58,7 +59,9 @@ function AppContent() {
   }, [])
 
   const isSignin = location.pathname === '/signin'
+  const isLanding = location.pathname === '/'
   const isEmployee = location.pathname.startsWith('/employee')
+  const isAdmin = !isSignin && !isLanding && !isEmployee
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,7 +72,7 @@ function AppContent() {
     }
   }, [isEmployee, navigate]);
 
-  if (loading && !isSignin && !isEmployee) {
+  if (loading && !isSignin && !isEmployee && !isLanding) {
     return (
       <div className="flex bg-zinc-950 text-white min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -82,17 +85,18 @@ function AppContent() {
 
   return (
     <div className="flex bg-zinc-950 text-white min-h-screen overflow-hidden text-sm w-full">
-      {isSignin ? null : (isEmployee ? (
+      {isSignin || isLanding ? null : (isEmployee ? (
         <EmployeeSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       ) : (
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       ))}
       
       <main className="flex-1 overflow-y-auto flex flex-col items-center relative">
-        <div className={`w-full ${isSignin ? '' : 'max-w-7xl px-6 md:px-10 py-6 md:py-10 mx-auto'}`}>
+        <div className={`w-full ${isSignin || isLanding ? '' : 'max-w-7xl px-6 md:px-10 py-6 md:py-10 mx-auto'}`}>
         <Routes>
+          <Route path="/" element={<Landing />} />
           <Route path="/signin" element={<Signin />} />
-          <Route path="/" element={<Dashboard tasks={tasks} employees={employees} meetings={mockMeetings} />} />
+          <Route path="/admin" element={<Dashboard tasks={tasks} employees={employees} meetings={mockMeetings} />} />
           <Route path="/tasks" element={<Tasks tasks={tasks} setTasks={setTasks} employees={employees} />} />
           <Route path="/team" element={<Team tasks={tasks} setTasks={setTasks} employees={employees} />} />
           <Route path="/meetings" element={<Meetings />} />
