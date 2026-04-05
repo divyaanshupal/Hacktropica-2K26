@@ -28,30 +28,34 @@ function AppContent() {
   
   useEffect(() => {
     const initData = async () => {
+      console.log("🛠️ CORTEX: Initializing data sequence...");
       try {
-        const [empData, taskData] = await Promise.all([
-          fetchEmployees(),
-          fetchTasks()
-        ])
-        console.log("⚡ FETCH SUCCESS: Employees =", empData.length, "Tasks =", taskData.length);
+        console.log("📡 CORTEX: Fetching employees...");
+        const empData = await fetchEmployees();
+        console.log("✅ CORTEX: Received employees:", empData?.length);
+        
+        console.log("📡 CORTEX: Fetching tasks...");
+        const taskData = await fetchTasks();
+        console.log("✅ CORTEX: Received tasks:", taskData?.length);
         
         // Map data with individual try-catch to prevent a single bad doc from crashing everything
-        const mappedEmployees = empData.map(e => {
+        const mappedEmployees = (empData || []).map(e => {
           try { return mapEmployeeData(e); } 
           catch (err) { console.error("Employee Mapping Error:", err, e); return null; }
         }).filter(Boolean);
 
-        const mappedTasks = taskData.map(t => {
+        const mappedTasks = (taskData || []).map(t => {
           try { return mapTaskData(t); } 
           catch (err) { console.error("Task Mapping Error:", err, t); return null; }
         }).filter(Boolean);
 
         setEmployees(mappedEmployees);
         setTasks(mappedTasks);
-        console.log("⚡ MAPPED: Employees =", mappedEmployees.length, "Tasks =", mappedTasks.length);
+        console.log("🚀 CORTEX: MAPPED SUCCESS. Ready.");
       } catch (error) {
-        console.error("Initialization error:", error)
+        console.error("❌ CORTEX: Initialization error:", error)
       } finally {
+        console.log("🏁 CORTEX: Loading complete.");
         setLoading(false)
       }
     }
