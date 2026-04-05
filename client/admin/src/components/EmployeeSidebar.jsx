@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   CheckSquare, 
@@ -10,15 +10,14 @@ import {
 } from 'lucide-react';
 
 export default function EmployeeXSidebar() {
-  // Simple state to handle active menu item for demonstration
-  const [activeItem, setActiveItem] = useState('Dashboard');
+  const location = useLocation();
 
   const navItems = [
-    { name: 'Dashboard', icon: LayoutDashboard },
-    { name: 'Tasks', icon: CheckSquare },
-    { name: 'Analytics', icon: BarChart2 },
-    { name: 'Projects', icon: Folder },
-    { name: 'AI Insights', icon: Zap },
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/employee' },
+    { name: 'Tasks', icon: CheckSquare, path: '/employee/tasks' },
+    { name: 'Analytics', icon: BarChart2, path: '/employee/analytics' },
+    { name: 'Projects', icon: Folder, path: '/employee/projects' },
+    { name: 'AI Insights', icon: Zap, path: '/employee/insights' },
   ];
 
   return (
@@ -38,12 +37,12 @@ export default function EmployeeXSidebar() {
         <nav className="px-3 mt-2 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeItem === item.name;
+            const isActive = location.pathname === item.path;
             
             return (
-              <button 
+              <NavLink 
                 key={item.name}
-                onClick={() => setActiveItem(item.name)}
+                to={item.path}
                 className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-colors ${
                   isActive 
                     ? 'bg-[#1f1f23] text-gray-100' 
@@ -52,7 +51,7 @@ export default function EmployeeXSidebar() {
               >
                 <Icon className={`w-[18px] h-[18px] ${isActive ? 'text-gray-300' : 'text-gray-500'}`} />
                 <span className="font-medium text-sm">{item.name}</span>
-              </button>
+              </NavLink>
             );
           })}
         </nav>
