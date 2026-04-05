@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, ListTodo, Clock, Calendar, ArrowRight, TrendingUp } from 'lucide-react';
+import { CheckCircle2, ListTodo, Clock, Calendar, ArrowRight, TrendingUp, Users, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TopBar from '../../components/TopBar';
 import StatCard from '../../components/StatCard';
 import TaskCard from '../../components/TaskCard';
 import MeetingCard from '../../components/MeetingCard';
+import { fetchEmployees, mapEmployeeData } from '../../services/api';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -17,12 +18,14 @@ const itemVariants = {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
 };
 
-export default function Dashboard({ tasks, meetings }) {
+export default function Dashboard({ tasks, meetings, employees }) {
     const totalTasks = tasks.length;
     const doneTasks = tasks.filter(t => t.status === 'done').length;
     const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
     const recentTasks = tasks.filter(t => t.status !== 'done').slice(0, 4);
     const recentMeetings = meetings.slice(0, 3);
+
+    const onlineAgents = employees.filter(m => m.status === 'online').length;
 
     return (
         <div className="w-full flex flex-col">
@@ -38,11 +41,13 @@ export default function Dashboard({ tasks, meetings }) {
                 animate="visible"
             >
                 {/* Stats */}
-                <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" variants={itemVariants}>
+                <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6" variants={itemVariants}>
                     <StatCard icon={ListTodo} label="Total Tasks" value={totalTasks} trend="up" trendValue="+3" color="#3b82f6" delay={0} />
                     <StatCard icon={Clock} label="In Progress" value={inProgressTasks} trend="up" trendValue="+1" color="#f59e0b" delay={0.1} />
                     <StatCard icon={CheckCircle2} label="Completed" value={doneTasks} trend="up" trendValue="+2" color="#10b981" delay={0.2} />
                     <StatCard icon={Calendar} label="Meetings" value={meetings.length} trend="down" trendValue="-1" color="#06b6d4" delay={0.3} />
+                    
+                    <StatCard icon={Users} label="Agents Online" value={`${onlineAgents}/${employees.length}`} trend="up" trendValue="Sync" color="#8b5cf6" delay={0.4} />
                 </motion.div>
 
                 {/* Main Grid */}
@@ -57,7 +62,7 @@ export default function Dashboard({ tasks, meetings }) {
                         </div>
                         <div className="flex flex-col gap-4">
                             {recentTasks.map((task, i) => (
-                                <TaskCard key={task.id} task={task} index={i} />
+                                <TaskCard key={task.id} task={task} index={i} employees={employees} />
                             ))}
                         </div>
                     </motion.div>
@@ -72,13 +77,13 @@ export default function Dashboard({ tasks, meetings }) {
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                                     <span>{doneTasks} of {totalTasks} tasks</span>
-                                    <span>{Math.round((doneTasks / totalTasks) * 100)}%</span>
+                                    <span>{totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0}%</span>
                                 </div>
                                 <div className="h-2.5 bg-zinc-950 border border-zinc-800/50 rounded-full overflow-hidden shadow-inner">
                                     <motion.div
                                         className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full relative"
                                         initial={{ width: 0 }}
-                                        animate={{ width: `${(doneTasks / totalTasks) * 100}%` }}
+                                        animate={{ width: `${totalTasks > 0 ? (doneTasks / totalTasks) * 100 : 0}%` }}
                                         transition={{ duration: 1, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
                                     >
                                         <div className="absolute top-0 right-0 bottom-0 w-8 bg-white/20 blur-sm mix-blend-overlay"></div>

@@ -1,14 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Users, Clock, FileText, ChevronDown } from 'lucide-react';
+import { Calendar, Users, Clock, FileText, ChevronDown, Loader2 } from 'lucide-react';
 import TopBar from '../../components/TopBar';
-import { meetings, teamMembers } from '../../data/mockData';
+import { meetings } from '../../data/mockData';
+import { fetchEmployees, mapEmployeeData } from '../../services/api';
 
 export default function Meetings() {
     const [expandedId, setExpandedId] = useState(null);
+    const [employees, setEmployees] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const loadEmployees = async () => {
+            try {
+                const data = await fetchEmployees();
+                setEmployees(data.map(mapEmployeeData));
+            } catch (error) {
+                console.error("Failed to fetch employees for meetings:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadEmployees();
+    }, []);
 
     const getMeetingAttendees = (attendeeIds) => {
-        return attendeeIds.map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
+        return attendeeIds.map(id => 
+            employees.find(m => m.id === id || m.employeeId === id)
+        ).filter(Boolean);
     };
 
     const getMeetingTypeColor = (type) => {
@@ -26,7 +45,12 @@ export default function Meetings() {
             <TopBar title="Meetings" subtitle={`${meetings.length} meetings scheduled`} />
 
             <div className="flex flex-col">
-                {meetings.length === 0 ? (
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-32 text-zinc-500 gap-4">
+                        <Loader2 size={40} className="animate-spin text-blue-500" />
+                        <p className="text-sm font-bold uppercase tracking-widest">Resolving Team Sync...</p>
+                    </div>
+                ) : meetings.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 text-zinc-500 gap-4 bg-zinc-900 border border-zinc-800 rounded-3xl">
                         <Calendar size={48} className="opacity-20" />
                         <h3 className="text-xl font-bold text-zinc-300">No meetings scheduled</h3>
@@ -108,6 +132,9 @@ export default function Meetings() {
                                                                 </div>
                                                             </div>
                                                         ))}
+                                                        {getMeetingAttendees(meeting.attendees).length === 0 && (
+                                                            <span className="text-xs text-zinc-600 italic">No matching team members found in database</span>
+                                                        )}
                                                     </div>
                                                 </div>
 
