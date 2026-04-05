@@ -19,9 +19,27 @@ const itemVariants = {
 };
 
 export default function Dashboard({ tasks, meetings, employees }) {
-    const totalTasks = tasks.length;
+    // 1. Calculate Active Tasks (those assigned as current live status for any employee)
+    const activeTaskIds = new Set(
+        employees
+            .filter(e => e.activeTask && e.activeTask.id)
+            .map(e => e.activeTask.id.toString())
+    );
+
+    // 2. Count "In Progress" - either strictly status or currently being worked on
+    const inProgressTasks = tasks.filter(t => 
+        t.status === 'in-progress' || activeTaskIds.has(t.id?.toString())
+    ).length;
+
+    // 3. Count "Done"
     const doneTasks = tasks.filter(t => t.status === 'done').length;
-    const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
+
+    // 4. Count "Todo" (mapped from 'open' or 'todo' if not in activeTaskIds)
+    const todoTasks = tasks.filter(t => 
+        (t.status === 'todo' || t.status === 'open') && !activeTaskIds.has(t.id?.toString()) && t.status !== 'done'
+    ).length;
+
+    const totalTasks = tasks.length || 0;
     const recentTasks = tasks.filter(t => t.status !== 'done').slice(0, 4);
     const recentMeetings = meetings.slice(0, 3);
 
@@ -42,12 +60,12 @@ export default function Dashboard({ tasks, meetings, employees }) {
             >
                 {/* Stats */}
                 <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6" variants={itemVariants}>
-                    <StatCard icon={ListTodo} label="Total Tasks" value={totalTasks} trend="up" trendValue="+3" color="#3b82f6" delay={0} />
-                    <StatCard icon={Clock} label="In Progress" value={inProgressTasks} trend="up" trendValue="+1" color="#f59e0b" delay={0.1} />
-                    <StatCard icon={CheckCircle2} label="Completed" value={doneTasks} trend="up" trendValue="+2" color="#10b981" delay={0.2} />
-                    <StatCard icon={Calendar} label="Meetings" value={meetings.length} trend="down" trendValue="-1" color="#06b6d4" delay={0.3} />
+                    <StatCard icon={ListTodo} label="Total Tasks" value={totalTasks} trend="up" trendValue={totalTasks > 0 ? "LIVE" : "0"} color="#3b82f6" delay={0} />
+                    <StatCard icon={Clock} label="In Progress" value={inProgressTasks} trend={inProgressTasks > 0 ? "up" : "none"} trendValue={inProgressTasks > 0 ? "Active" : "None"} color="#f59e0b" delay={0.1} />
+                    <StatCard icon={CheckCircle2} label="Completed" value={doneTasks} trend="up" trendValue={doneTasks > 0 ? "Done" : "0"} color="#10b981" delay={0.2} />
+                    <StatCard icon={Calendar} label="Meetings" value={meetings.length} trend="none" trendValue="Upcoming" color="#06b6d4" delay={0.3} />
                     
-                    <StatCard icon={Users} label="Agents Online" value={`${onlineAgents}/${employees.length}`} trend="up" trendValue="Sync" color="#8b5cf6" delay={0.4} />
+                    <StatCard icon={Users} label="Agents Online" value={`${onlineAgents}/${employees.length}`} trend={onlineAgents > 0 ? "up" : "down"} trendValue={onlineAgents > 0 ? "READY" : "OFF"} color="#8b5cf6" delay={0.4} />
                 </motion.div>
 
                 {/* Main Grid */}
@@ -93,7 +111,7 @@ export default function Dashboard({ tasks, meetings, employees }) {
 
                             <div className="grid grid-cols-2 gap-4 mt-2">
                                 {[
-                                    { label: 'To Do', count: tasks.filter(t => t.status === 'todo').length, color: '#3b82f6' },
+                                    { label: 'To Do', count: todoTasks, color: '#3b82f6' },
                                     { label: 'In Progress', count: inProgressTasks, color: '#f59e0b' },
                                     { label: 'Review', count: tasks.filter(t => t.status === 'review').length, color: '#8b5cf6' },
                                     { label: 'Done', count: doneTasks, color: '#10b981' },

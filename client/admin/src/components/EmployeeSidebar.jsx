@@ -6,11 +6,19 @@ import {
   Folder, 
   Zap, 
   Book, 
-  HelpCircle 
+  HelpCircle,
+  LogOut
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function EmployeeXSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    localStorage.removeItem('employeeData');
+    navigate('/signin');
+  };
 
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/employee' },
@@ -28,7 +36,7 @@ export default function EmployeeXSidebar() {
         {/* Logo & Brand */}
         <div className="p-6 flex items-center gap-3">
           <div className="bg-[#242429] p-2 rounded-lg border border-[#2e2e33]">
-            <div className="w-5 h-5 bg-gradient-to-br from-gray-300 to-gray-500 rounded-[4px]"></div>
+            <div className="w-5 h-5 bg-linear-to-br from-gray-300 to-gray-500 rounded-[4px]"></div>
           </div>
           <h1 className="text-xl font-semibold text-white tracking-tight">EmployeeX</h1>
         </div>
@@ -60,26 +68,14 @@ export default function EmployeeXSidebar() {
       {/* --- Bottom Section --- */}
       <div className="px-4 pb-6 space-y-4">
         
-        {/* Dev Productivity Status Card */}
-        <div className="bg-[#18181b] p-4 rounded-xl border border-[#232328]">
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-            <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase leading-none">
-              Dev Productivity
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 font-medium">Active Session: 4h 20m</p>
-        </div>
-        
-        {/* Footer Links */}
-        <div className="space-y-1">
-          <button className="flex items-center gap-3 w-full px-3 py-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1e] rounded-lg transition-colors">
-            <Book className="w-[18px] h-[18px]" />
-            <span className="text-sm font-medium">Documentation</span>
-          </button>
-          <button className="flex items-center gap-3 w-full px-3 py-2 text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1e] rounded-lg transition-colors">
-            <HelpCircle className="w-[18px] h-[18px]" />
-            <span className="text-sm font-medium">Support</span>
+        {/* Sign Out Section */}
+        <div className="pt-2 border-t border-[#1f1f23]">
+          <button 
+            onClick={handleSignOut}
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors group"
+          >
+            <LogOut className="w-[18px] h-[18px] text-rose-500 group-hover:text-rose-400" />
+            <span className="font-semibold text-sm">Sign Out</span>
           </button>
         </div>
         
