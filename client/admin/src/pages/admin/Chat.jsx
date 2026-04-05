@@ -3,23 +3,28 @@ import { Bot, User, Send, Paperclip, Sparkles } from 'lucide-react';
 import TopBar from '../../components/TopBar';
 import { chatResponses, quickReplies } from '../../data/mockData';
 
-function getResponse(message) {
-    const lower = message.toLowerCase();
-    if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey'))
-        return chatResponses.greetings[Math.floor(Math.random() * chatResponses.greetings.length)];
-    if (lower.includes('task') || lower.includes('todo') || lower.includes('backlog'))
-        return chatResponses.task[Math.floor(Math.random() * chatResponses.task.length)];
-    if (lower.includes('team') || lower.includes('member') || lower.includes('who'))
-        return chatResponses.team[Math.floor(Math.random() * chatResponses.team.length)];
-    if (lower.includes('meeting') || lower.includes('summary') || lower.includes('call'))
-        return chatResponses.meeting[Math.floor(Math.random() * chatResponses.meeting.length)];
-    if (lower.includes('deadline') || lower.includes('due') || lower.includes('urgent'))
-        return chatResponses.deadline[0];
-    if (lower.includes('performance') || lower.includes('sprint') || lower.includes('velocity'))
-        return chatResponses.performance[0];
-    if (lower.includes('help') || lower.includes('what can'))
-        return chatResponses.help[0];
-    return chatResponses.default[Math.floor(Math.random() * chatResponses.default.length)];
+const WEBHOOK_URL = 'https://hacktropia.app.n8n.cloud/webhook/b9ae09bc-0aba-4517-a28d-86c947004885';
+
+async function fetchAIResponse(message) {
+    try {
+        console.log("🚀 Payload to n8n:", JSON.stringify({ message }));
+        const response = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const data = await response.json();
+        // Handle various potential n8n output formats
+        return data.output || data.response || data.message || (typeof data === 'string' ? data : JSON.stringify(data));
+    } catch (error) {
+        console.error('AI Fetch Error:', error);
+        return "I'm sorry, I'm having trouble connecting to the neural network. Please try again later.";
+    }
 }
 
 export default function Chat() {
@@ -38,7 +43,7 @@ export default function Chat() {
         scrollToBottom();
     }, [messages, isTyping]);
 
-    const sendMessage = (text) => {
+    const sendMessage = async (text) => {
         const userMsg = text || input;
         if (!userMsg.trim()) return;
 
@@ -46,11 +51,9 @@ export default function Chat() {
         setInput('');
         setIsTyping(true);
 
-        setTimeout(() => {
-            const response = getResponse(userMsg);
-            setMessages(prev => [...prev, { id: Date.now() + 1, type: 'bot', text: response }]);
-            setIsTyping(false);
-        }, 800 + Math.random() * 700);
+        const aiResponse = await fetchAIResponse(userMsg);
+        setMessages(prev => [...prev, { id: Date.now() + 1, type: 'bot', text: aiResponse }]);
+        setIsTyping(false);
     };
 
     const handleKeyDown = (e) => {
@@ -84,12 +87,12 @@ export default function Chat() {
                     </div>
 
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto w-full p-6 space-y-6 scrollbar-thin scrollbar-thumb-zinc-700 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]">
+                    <div className="flex-1 overflow-y-auto w-full p-6 space-y-6 scrollbar-thin scrollbar-thumb-zinc-700 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]">
                         
                         {messages.map(msg => (
                             <div key={msg.id} className={`flex max-w-[85%] ${msg.type === 'user' ? 'ml-auto justify-end' : 'mr-auto justify-start'}`}>
                                 {msg.type === 'bot' && (
-                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-cyan-500 flex flex-shrink-0 items-center justify-center text-white text-xs font-bold mr-3 mt-auto shadow-sm">
+                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-cyan-500 flex shrink-0 items-center justify-center text-white text-xs font-bold mr-3 mt-auto shadow-sm">
                                         <Bot size={16} />
                                     </div>
                                 )}
@@ -104,7 +107,7 @@ export default function Chat() {
                                     </div>
                                 </div>
                                 {msg.type === 'user' && (
-                                    <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex flex-shrink-0 items-center justify-center text-white text-xs font-bold ml-3 mt-auto shadow-sm">
+                                    <div className="w-8 h-8 rounded-full bg-zinc-700 border border-zinc-600 flex shrink-0 items-center justify-center text-white text-xs font-bold ml-3 mt-auto shadow-sm">
                                         <User size={16} />
                                     </div>
                                 )}
@@ -113,7 +116,7 @@ export default function Chat() {
 
                         {isTyping && (
                             <div className="flex max-w-[85%] mr-auto justify-start">
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-cyan-500 flex flex-shrink-0 items-center justify-center text-white text-xs font-bold mr-3 mt-auto shadow-sm">
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-cyan-500 flex shrink-0 items-center justify-center text-white text-xs font-bold mr-3 mt-auto shadow-sm">
                                     <Bot size={16} />
                                 </div>
                                 <div className="p-4 bg-zinc-800 text-slate-200 border border-zinc-700/50 rounded-2xl rounded-tl-sm flex gap-1.5 items-center px-5 h-[52px]">
