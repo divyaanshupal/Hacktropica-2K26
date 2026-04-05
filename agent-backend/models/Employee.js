@@ -162,6 +162,7 @@ const EmployeeSchema = new mongoose.Schema({
     // Historical log of completed work
     history: [{
       issueId: { type: mongoose.Schema.Types.ObjectId, ref: 'Issue' },
+      taskTitle: { type: String },
       resolvedAt: { type: Date, default: Date.now }
     }]
   }

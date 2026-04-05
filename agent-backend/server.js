@@ -5,17 +5,21 @@ const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Employee = require('./models/Employee');
 const apiRoutes = require('./routes/api');
+const taskRoutes = require('./routes/task');
+
 
 const app = express();
 app.use(express.json());
 
 app.use(cors({
   origin: "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
 
 app.use('/api', apiRoutes);
+app.use('/api/task', taskRoutes);
+
 
 
 // Initialize Gemini

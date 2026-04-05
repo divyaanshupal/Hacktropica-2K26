@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import EmployeeSidebar from './components/EmployeeSidebar'
 import Dashboard from './pages/admin/Dashboard'
@@ -12,12 +12,17 @@ import InteractiveWorkspace from './pages/employee/Employee'
 import { meetings as mockMeetings } from './data/mockData'
 import { fetchEmployees, fetchTasks, mapEmployeeData, mapTaskData } from './services/api'
 import { Loader2 } from 'lucide-react'
+import EmployeeTasks from './pages/employee/Tasks'
+import { initialTasks, meetings } from './data/mockData'
+
+
 
 function AppContent() {
   const [collapsed, setCollapsed] = useState(false)
-  const [tasks, setTasks] = useState([])
-  const [employees, setEmployees] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [tasks, setTasks] = useState(initialTasks)
+   const [employees, setEmployees] = useState([])
+     const [loading, setLoading] = useState(true)
+  const [taskQueue, setTaskQueue] = useState([]) // State for employee tasks
   const location = useLocation()
   
   useEffect(() => {
@@ -40,6 +45,15 @@ function AppContent() {
 
   const isSignin = location.pathname === '/signin'
   const isEmployee = location.pathname.startsWith('/employee')
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Auth Guard: If trying to access /employee and no login data exists, send to signin
+    const user = localStorage.getItem('employeeData');
+    if (isEmployee && !user) {
+      navigate('/signin');
+    }
+  }, [isEmployee, navigate]);
 
   if (loading && !isSignin && !isEmployee) {
     return (
@@ -69,7 +83,8 @@ function AppContent() {
           <Route path="/team" element={<Team tasks={tasks} setTasks={setTasks} employees={employees} />} />
           <Route path="/meetings" element={<Meetings />} />
           <Route path="/chat" element={<Chat />} />
-          <Route path="/employee" element={<InteractiveWorkspace />} />
+          <Route path="/employee" element={<InteractiveWorkspace setTaskQueue={setTaskQueue} taskQueue={taskQueue} />} />
+          <Route path="/employee/tasks" element={<EmployeeTasks taskQueue={taskQueue} />} />
         </Routes>
         </div>
       </main>
