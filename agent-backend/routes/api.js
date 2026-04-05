@@ -2,6 +2,67 @@ const express = require('express');
 const router = express.Router();
 const Employee = require('../models/Employee');
 
+/**
+ * GET /api/employee/live?email=...
+ * Finds employee by email and returns ONLY specific status and task queue fields.
+ * Optimized with Mongoose projection and .lean() for faster performance.
+ */
+router.get('/employee/live', async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    // 1. Basic validation for email
+    if (!email) {
+      return res.status(400).json({ error: "Email query parameter is required" });
+    }
+
+    // Email format validation (optional but good practice)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    // 2. Find employee with Mongoose projection
+    // Return ONLY: currentTaskCriticality, activeTaskTitle, activeTaskDescription, activeIssueId, workload.taskQueue
+    const employee = await Employee.findOne(
+      { email },
+      {
+        'liveStatus.currentTaskCriticality': 1,
+        'liveStatus.activeTaskTitle': 1,
+        'liveStatus.activeTaskDescription': 1,
+        'liveStatus.activeIssueId': 1,
+        'workload.taskQueue': 1,
+        _id: 0 // Avoid returning the entire document
+      }
+    ).lean();
+
+    // 3. Handle 404 if employee not found
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    // 4. Return flattened/optimized response format
+    const response = {
+      currentTaskCriticality: employee.liveStatus?.currentTaskCriticality ?? 0,
+      activeTaskTitle: employee.liveStatus?.activeTaskTitle ?? "",
+      activeTaskDescription: employee.liveStatus?.activeTaskDescription ?? "",
+      activeIssueId: employee.liveStatus?.activeIssueId ?? null,
+      taskQueue: (employee.workload?.taskQueue || []).map(task => ({
+        issueId: task.issueId,
+        taskTitle: task.taskTitle,
+        estimatedCriticality: task.estimatedCriticality,
+        addedToQueueAt: task.addedToQueueAt
+      }))
+    };
+
+    return res.status(200).json(response);
+
+  } catch (error) {
+    console.error("Error fetching live employee status:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // --- ADD EMPLOYEE ---
 router.post('/employees', async (req, res) => {
   try {
@@ -18,7 +79,6 @@ router.post('/employees', async (req, res) => {
   }
 });
 
-
 // --- LOGIN EMPLOYEE ---
 router.post('/login', async (req, res) => {
   try {
@@ -29,10 +89,6 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Employee not found" });
     }
-
-    // if (user.password !== password) {
-    //   return res.status(401).json({ message: "Wrong password" });
-    // }
 
     res.status(200).json({
       message: "Login successful",

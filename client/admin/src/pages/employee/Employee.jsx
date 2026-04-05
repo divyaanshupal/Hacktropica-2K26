@@ -2,31 +2,44 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, CheckSquare, BarChart2, Folder, Zap, Search, Bell, 
   Settings, Clock, TerminalSquare, Play, Book, HelpCircle, Pause,
-  TriangleAlert, Brain, Loader2
+  TriangleAlert, Brain, Loader2, RefreshCw, BarChart, Target, CheckCircle2
 } from 'lucide-react';
 
 // --- MAIN DASHBOARD COMPONENT ---
-export default function InteractiveWorkspace() {
+export default function InteractiveWorkspace({ setTaskQueue, taskQueue }) {
   const [showCriticalModal, setShowCriticalModal] = useState(false);
   const [activeTask, setActiveTask] = useState('#AUTH-294');
   const [taskTitle, setTaskTitle] = useState('Refactor Auth Service');
 
+  // New States for API Integration
+  const [lastCritical, setLastCritical] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+  
+  // Dashboard Metrics from API
+  const [taskCompletion, setTaskCompletion] = useState(85);
+  const [workload, setWorkload] = useState(64);
+
   // Pull employee details from localStorage (saved during Signin)
   const [employee, setEmployee] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('employeeData')) || { name: 'Alex Chen', role: 'Infrastructure' };
+      return JSON.parse(localStorage.getItem('employeeData')) || { name: 'Alex Chen', role: 'Infrastructure', email: 'alex@company.com' };
     } catch {
-      return { name: 'Alex Chen', role: 'Infrastructure' };
+      return { name: 'Alex Chen', role: 'Infrastructure', email: 'alex@company.com' };
     }
   });
-  
+
   // 1. Live Timer State
-  const [sessionSeconds, setSessionSeconds] = useState(15735); // Starts at 04:22:15
+  const [sessionSeconds, setSessionSeconds] = useState(0); 
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => setSessionSeconds(prev => prev + 1), 1000);
+    let timer;
+    if (isTimerRunning) {
+      timer = setInterval(() => setSessionSeconds(prev => prev + 1), 1000);
+    }
     return () => clearInterval(timer);
-  }, []);
+  }, [isTimerRunning]);
 
   const formatTime = (totalSeconds) => {
     const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
@@ -42,42 +55,78 @@ export default function InteractiveWorkspace() {
   ]);
   const logsEndRef = useRef(null);
 
+  // Manual Refresh Logic
+  const handleRefresh = async () => {
+    if (!employee?.email) return;
+    setIsLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/employee/live?email=${employee.email}`);
+      const data = await response.json();
+      
+      if (data) {
+        setActiveTask(data.activeIssueId || activeTask);
+        setTaskTitle(data.activeTaskTitle || taskTitle);
+        setTaskQueue(data.taskQueue || []);
+        
+        // Update metrics if available
+        if (data.taskCompletion !== undefined) setTaskCompletion(data.taskCompletion);
+        if (data.workload !== undefined) setWorkload(data.workload);
+        
+        // Criticality Alert Logic
+        const currentCrit = data.currentTaskCriticality || 0;
+        if (currentCrit >= 8 && lastCritical < 8) {
+          setShowCriticalModal(true);
+        }
+        setLastCritical(currentCrit);
+      }
+    } catch (error) {
+      console.error("Refresh failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Mark as Done Logic
+  const handleMarkAsDone = async () => {
+    if (!activeTask || loadingComplete) return;
+    
+    // Extract actual numeric or string ID from activeTask (e.g., #AUTH-294 -> AUTH-294)
+    const taskId = activeTask.replace('#', '');
+    setLoadingComplete(true);
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/task/complete/${taskId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log("this is the task id:",taskId)
+      if (!response.ok) throw new Error('Failed to complete task');
+      
+      // Successfully completed, now refresh dashboard to get new active task
+      await handleRefresh();
+      
+    } catch (error) {
+      console.error("Complete task error:", error);
+    } finally {
+      setLoadingComplete(false);
+    }
+  };
+
   useEffect(() => {
-    const mockIncomingLogs = [
-      { delay: 3000, log: { id: 3, time: '14:22:12', level: 'DEBUG', msg: 'Cache miss for key: session_0x8f22e...', color: 'text-gray-300' } },
-      { delay: 4500, log: { id: 4, time: '14:22:12', level: 'DEBUG', msg: 'Fetching from PostgreSQL (latency: 42ms)', color: 'text-gray-300' } },
-      { delay: 7000, log: { id: 5, time: '14:22:14', level: 'WARN', msg: 'Deprecated API call detected in legacy module.', color: 'text-rose-400' } },
-      { delay: 9000, log: { id: 6, time: '14:22:18', level: 'INFO', msg: 'Patching session handler...', color: 'text-emerald-400' } }
-    ];
-
-    const timeouts = mockIncomingLogs.map(({ delay, log }) => 
-      setTimeout(() => setLogs(prev => [...prev, log]), delay)
-    );
-
-    // Auto-trigger the critical modal after 12 seconds for demonstration
-    const modalTimeout = setTimeout(() => setShowCriticalModal(true), 12000);
-
-    return () => {
-      timeouts.forEach(clearTimeout);
-      clearTimeout(modalTimeout);
-    };
+    handleRefresh();
   }, []);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // 3. Interactive Task Queue State
-  const [pendingTasks, setPendingTasks] = useState([
-    { id: 1, title: 'Update Documentation', score: 82, context: 'Last activity: 2h ago', status: 'paused' },
-    { id: 2, title: 'Fix CSS Grid Overlap', score: 45, context: 'UI/UX Backlog', status: 'paused' },
-    { id: 3, title: 'Sync API Schema', score: 29, context: 'Waiting for DevOps', status: 'paused' }
-  ]);
-
+  // Handle task pause/resume (local state only for UI feedback)
   const toggleTask = (taskId) => {
-    setPendingTasks(tasks => tasks.map(t => ({
+    setTaskQueue(tasks => tasks.map(t => ({
       ...t,
-      status: t.id === taskId ? (t.status === 'running' ? 'paused' : 'running') : 'paused'
+      status: t._id === taskId ? (t.status === 'running' ? 'paused' : 'running') : 'paused'
     })));
   };
 
@@ -85,7 +134,12 @@ export default function InteractiveWorkspace() {
     setShowCriticalModal(false);
     setActiveTask('#DB-8829-X');
     setTaskTitle('Resolve DB Pool Saturation');
-    setLogs([{ id: 99, time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'CRITICAL', msg: 'Emergency task accepted. Connecting to db-prod-01...', color: 'text-rose-500' }]);
+    
+    // Timer starts from zero when developer accepts
+    setSessionSeconds(0);
+    setIsTimerRunning(true);
+    
+    setLogs(prev => [...prev, { id: Date.now(), time: new Date().toLocaleTimeString('en-US', { hour12: false }), level: 'CRITICAL', msg: 'Emergency task accepted. Connecting to db-prod-01...', color: 'text-rose-500' }]);
   };
 
   return (
@@ -108,32 +162,58 @@ export default function InteractiveWorkspace() {
               </div>
             </div>
           </div>
+
+          {/* Refresh Button */}
+          <button 
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1e] border border-[#232328] rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Sync Dashboard
+          </button>
         </header>
 
         <div className="px-8 pb-8 max-w-4xl">
           {/* Header & Live Timer */}
           <div className="flex justify-between items-start mb-6">
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <span className={`px-2 py-0.5 border text-[10px] font-bold tracking-wider rounded uppercase ${activeTask.includes('DB') ? 'bg-[#3a1d22] text-[#f43f5e] border-[#5c212a]' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
                   {activeTask.includes('DB') ? 'Emergency' : 'Critical'}
                 </span>
                 <span className="text-gray-400 text-sm">Task ID: {activeTask}</span>
               </div>
-              <h2 className="text-3xl font-bold text-white tracking-tight">{taskTitle}</h2>
+              
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-bold text-white tracking-tight">{taskTitle}</h2>
+                <button 
+                  onClick={handleMarkAsDone}
+                  disabled={loadingComplete}
+                  className="mr-6 flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-[#0e0e11] rounded-xl text-sm font-black transition-all shadow-lg shadow-emerald-500/10 disabled:opacity-50 disabled:grayscale active:scale-95"
+                >
+                  {loadingComplete ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  {loadingComplete ? 'Processing...' : 'Mark as Done'}
+                </button>
+              </div>
             </div>
+            
             <div className="bg-[#18181c] border border-[#232328] rounded-xl p-3 px-5 text-right shadow-lg">
               <div className="text-[10px] text-gray-500 font-bold tracking-wider uppercase mb-1">Session Timer</div>
               <div className="text-xl font-mono text-gray-200 font-semibold mb-0.5">{formatTime(sessionSeconds)}</div>
               <div className="text-[10px] text-emerald-500 flex justify-end items-center gap-1.5 font-medium">
-                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                 Running
+                 <div className={`w-1.5 h-1.5 bg-emerald-500 rounded-full ${isTimerRunning ? 'animate-pulse' : ''}`}></div>
+                 {isTimerRunning ? 'Active Session' : 'Standby'}
               </div>
             </div>
           </div>
 
           {/* Dynamic Terminal Logs */}
-          <div className="bg-[#09090b] border border-[#1f1f23] rounded-2xl overflow-hidden mb-6 shadow-xl shadow-black/40">
+          <div className="bg-[#09090b] border border-[#1f1f23] rounded-2xl overflow-hidden mb-8 shadow-xl shadow-black/40">
             <div className="bg-[#121214] border-b border-[#1f1f23] px-4 py-3 flex items-center justify-between">
               <div className="flex gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#f87171]"></div>
@@ -161,6 +241,43 @@ export default function InteractiveWorkspace() {
               </div>
             </div>
           </div>
+
+          {/* New Metrics Section */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-[#121214] border border-[#1f1f23] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+                  <Target size={20} />
+                </div>
+                <span className="text-2xl font-bold text-white">{taskCompletion}%</span>
+              </div>
+              <p className="text-sm font-semibold text-gray-200 mb-1 tracking-tight">Task Completion</p>
+              <p className="text-xs text-gray-500 mb-4 font-medium">Sprint goal progress</p>
+              <div className="h-1.5 w-full bg-[#1c1c21] rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                  style={{ width: `${taskCompletion}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="bg-[#121214] border border-[#1f1f23] p-5 rounded-2xl shadow-lg relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+                  <BarChart size={20} />
+                </div>
+                <span className="text-2xl font-bold text-white">{workload}%</span>
+              </div>
+              <p className="text-sm font-semibold text-gray-200 mb-1 tracking-tight">Current Workload</p>
+              <p className="text-xs text-gray-500 mb-4 font-medium">System utilization</p>
+              <div className="h-1.5 w-full bg-[#1c1c21] rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(99,102,241,0.5)]" 
+                  style={{ width: `${workload}%` }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 
@@ -171,18 +288,18 @@ export default function InteractiveWorkspace() {
           <p className="text-xs text-gray-500 mb-6">Smart-sorted by priority score</p>
 
           <div className="space-y-4">
-            {pendingTasks.map((task) => (
-              <div key={task.id} className={`border rounded-xl p-4 transition-colors ${task.status === 'running' ? 'bg-[#18181c] border-[#3f3f46]' : 'bg-[#121214] border-[#1f1f23]'}`}>
+            {taskQueue.map((task) => (
+              <div key={task._id || task.id} className={`border rounded-xl p-4 transition-colors ${task.status === 'running' ? 'bg-[#18181c] border-[#3f3f46]' : 'bg-[#121214] border-[#1f1f23]'}`}>
                 <div className="flex justify-between items-start mb-3">
-                  <h4 className={`text-sm font-semibold ${task.status === 'running' ? 'text-gray-200' : 'text-gray-400'}`}>{task.title}</h4>
-                  <span className="bg-[#1f1f23] text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded">{task.score}</span>
+                  <h4 className={`text-sm font-semibold ${task.status === 'running' ? 'text-gray-200' : 'text-gray-400'}`}>{task.taskTitle}</h4>
+                  <span className="bg-[#1f1f23] text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded">{task.estimatedCriticality}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
                   <Clock className="w-3.5 h-3.5" />
-                  {task.context}
+                  {task.addedToQueueAt ? new Date(task.addedToQueueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
                 </div>
                 <button 
-                  onClick={() => toggleTask(task.id)}
+                  onClick={() => toggleTask(task._id || task.id)}
                   className={`w-full text-xs font-semibold py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
                     task.status === 'running' 
                       ? 'bg-[#e4e4e7] text-[#09090b] hover:bg-white' 

@@ -9,11 +9,13 @@ import Meetings from './pages/admin/Meetings'
 import Chat from './pages/admin/Chat'
 import Signin from './pages/employee/Signin'
 import InteractiveWorkspace from './pages/employee/Employee'
+import EmployeeTasks from './pages/employee/Tasks'
 import { initialTasks, meetings } from './data/mockData'
 
 function AppContent() {
   const [collapsed, setCollapsed] = useState(false)
   const [tasks, setTasks] = useState(initialTasks)
+  const [taskQueue, setTaskQueue] = useState([]) // State for employee tasks
   const location = useLocation()
   
   const isSignin = location.pathname === '/signin'
@@ -45,7 +47,8 @@ function AppContent() {
           <Route path="/team" element={<Team tasks={tasks} />} />
           <Route path="/meetings" element={<Meetings />} />
           <Route path="/chat" element={<Chat />} />
-          <Route path="/employee" element={<InteractiveWorkspace />} />
+          <Route path="/employee" element={<InteractiveWorkspace setTaskQueue={setTaskQueue} taskQueue={taskQueue} />} />
+          <Route path="/employee/tasks" element={<EmployeeTasks taskQueue={taskQueue} />} />
         </Routes>
         </div>
       </main>
