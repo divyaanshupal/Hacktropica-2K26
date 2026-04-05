@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Meet PDF Transcriber",
+  "version": "1.0",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "downloads",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_title": "Meet Transcriber",
+    "default_popup": "popup.html"
+  }
+}

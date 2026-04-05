@@ -1,0 +1,31 @@
+{
+  "name": "google-meet-sum",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@mistralai/mistralai": "^2.1.2",
+    "jspdf": "^4.2.1",
+    "puppeteer": "^24.40.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.38",
+    "@types/puppeteer": "^5.4.7",
+    "copy-webpack-plugin": "^14.0.0",
+    "dotenv-webpack": "^9.0.0",
+    "ts-loader": "^9.5.7",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^7.0.2"
+  }
+}
