@@ -1,0 +1,156 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body }}",
+        "options": {
+          "systemMessage": "You are an Elite Engineering Floor Manager. \nYou receive natural language input from the Admin.\n\nIf the Admin asks a question about employee status, workload, or who is doing what (e.g., \"Who is working on the login?\", \"Are the backend devs busy?\"), you MUST use the 'Search_Employee_Database' tool.\nSearch the database using the Admin's query, and then provide a clear, concise natural language answer to the Admin based ONLY on the retrieved vector data. \n"
+        }
+      },
+      "id": "5cad2b25-76f5-485f-92b5-769df2d1d4b2",
+      "name": "Admin AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        -128,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        128,
+        496
+      ],
+      "id": "16138bdf-dedc-403d-a58d-988273cf059a",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "fMOuUXAtYkSMgHYU",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this tool to search the database for tasks, employee assignments, workloads, and project status. Call this tool EVERY TIME the admin asks a question about who is working on a specific task or feature",
+        "mongoCollection": {
+          "__rl": true,
+          "value": "task_vectors",
+          "mode": "list",
+          "cachedResultName": "task_vectors"
+        },
+        "vectorIndexName": "Tasks_vector_index",
+        "topK": 20,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreMongoDBAtlas",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        176
+      ],
+      "id": "8e23de53-498e-4377-88f3-803772373cd1",
+      "name": "Search_Employee_Database",
+      "credentials": {
+        "mongoDb": {
+          "id": "q7ga59Lu6mAtprGf",
+          "name": "MongoDB account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b9ae09bc-0aba-4517-a28d-86c947004885",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        -96
+      ],
+      "id": "5925be12-3f4f-452c-93f7-5d1df6566505",
+      "name": "Webhook",
+      "webhookId": "b9ae09bc-0aba-4517-a28d-86c947004885"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        336
+      ],
+      "id": "459e97ca-a38a-4edb-ac88-5a7b9b486b4d",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "aNdhW8HNa2rO0scE",
+          "name": "Mistral Cloud account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Search_Employee_Database",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search_Employee_Database": {
+      "ai_tool": [
+        [
+          {
+            "node": "Admin AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Admin AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Admin AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33e6112248391fa02423609c7b9af197a796a1789e7089b69c3801cbb7992472"
+  }
+}
