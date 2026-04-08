@@ -1,0 +1,824 @@
+{
+  "name": "Company Research Agent - Supabase + Gemini",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.summary }}",
+        "options": {
+          "systemMessage": "=Role & Primary Directive\nYou are an expert internal support agent for the company. Your primary directive is to resolve user queries using ONLY the provided context retrieved from the company's secure database (which includes Notion documentation, Open GitHub Issues, and Closed Issues/Past Resolutions).\n\nExecution Workflow\nFor every user message, you MUST strictly follow this logical decision tree:\n\nPhase 1: Intent Classification\nAnalyze the user's message and determine their intent. Categorize the query into one of three buckets:\n\nUNCLEAR: It is ambiguous whether they are reporting a system problem/bug or simply asking a general question.\n\nINFO QUERY: The user is asking for information, data, documentation, policies, or rules.\n\nISSUE/BUG: The user is actively reporting a problem, error, or workflow blocker.\n\nPhase 2: Action Based on Category\nIf UNCLEAR:\nDo not assume. Stop and ask a polite, direct follow-up question to clarify if they are reporting an issue or just looking for information. (Example: \"To help you best, are you experiencing a specific error with this, or are you just looking for documentation on how it works?\")\n\nIf INFO QUERY:\nAnswer the question using ONLY the general documentation and data present in the retrieved context. If the answer is not in the context, state explicitly: \"I could not find that information in our current documentation.\"\n\nIf ISSUE/BUG:\nYou must process the issue through the following strict sequence:\n\nCheck Open Issues (GitHub Context): Review the provided context for github_issues. If a related or exact issue is currently open, inform the user immediately: \"A similar issue has already been raised and is currently being tracked by our team.\"\n\nCheck Closed/Resolved Issues (Notion Context): Review the provided context for closed_issues or past resolutions. If a proposed solution or fix exists, provide it clearly and concisely to the user.\n\nEscalation & Workarounds: If no solution is found in the closed issues, OR if the provided solution fails and the user asks to raise a new query, you MUST execute these two steps:\n\n1-Start your response with exactly this text: [NEW_ISSUE_DETECTED]\n\n2-Acknowledge & Escalate: State exactly: \"I could not find a specific solution in our records. I have forwarded your issue to the engineering team.\"\n\n3-Provide \"Temporary Workarounds\".\n\nSuggest Workarounds: Provide 2 to 3 safe, generic, temporary troubleshooting steps that the user can try in the meantime. Clearly label this section as \"Temporary Workarounds\".\n\nStrict Constraints\nZero Hallucination: NEVER invent company policies, rules, past issues, or data.\n\nStrict Sourcing: NEVER claim an issue is tracked or resolved unless explicitly stated in the retrieved context.\n\nKnowledge Boundary: Your general outside AI knowledge is ONLY permitted for generating the \"Temporary Workarounds\". Every other response (Info Queries, Solutions, Issue Status) must be strictly bounded by the retrieved context."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        -1504
+      ],
+      "id": "42456f3e-aa2e-4dd4-b3d8-e8771b1b1d37",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -1296
+      ],
+      "id": "8b263102-8784-47ce-97c5-b87ccce7203a",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OtFFjiezBBk8FkHZ",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -1072
+      ],
+      "id": "f6070aa9-eea2-4a9c-b495-cd86c271637b",
+      "name": "Embeddings Google Gemini3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "piinkWRy2XxXA1CL",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "You are an expert assistant for a knowledge base. Your task is to answer questions based ONLY on the context provided by the tool.\n\nThe context you receive will be structured like this:\n[\n  {\n    \"pageContent\": \"Text from the document...\",\n    \"metadata\": { \"source\":  }\n  }\n]\n\nYour instructions are:\n1. Formulate your answer using only the text from the 'pageContent'.\n2. After your answer, on a new line, you MUST provide the URL from the 'source' key in the metadata.\n3. Format the citation exactly as: Source: [URL]",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        576,
+        -1200
+      ],
+      "id": "7b859c4e-4d37-45d5-81bf-d90979c40fff",
+      "name": "Supabase Vector Store3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vZSpKbYOUGXAleWl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-email",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        -1568
+      ],
+      "id": "ce2a509c-6aed-43e3-87f0-0ef1e74acd87",
+      "name": "Webhook1",
+      "webhookId": "6cc8c5f3-03c0-462c-bcfa-20e54f58be21"
+    },
+    {
+      "parameters": {
+        "resource": "repository",
+        "owner": {
+          "__rl": true,
+          "value": "divyaanshupal",
+          "mode": "list",
+          "cachedResultName": "divyaanshupal",
+          "cachedResultUrl": "https://github.com/divyaanshupal"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "System-Design",
+          "mode": "list",
+          "cachedResultName": "System-Design",
+          "cachedResultUrl": "https://github.com/divyaanshupal/System-Design"
+        },
+        "getRepositoryIssuesFilters": {}
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        -320,
+        240
+      ],
+      "id": "b138f1c4-edca-40b7-9e88-93ec7bc61730",
+      "name": "Get issues of a repository",
+      "webhookId": "a59c25e5-6087-4b26-b88d-9470abeac670",
+      "credentials": {
+        "githubApi": {
+          "id": "HjGlaOiDoSasYbei",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const issues = $input.all();\nconst formattedIssues = [];\n\nfor (const item of issues) {\n  // Extract only the relevant fields from the GitHub JSON\n  const title = item.json.title || \"No Title\";\n  const body = item.json.body || \"No Description\";\n  const url = item.json.html_url || \"\";\n  const number = item.json.number || \"\";\n\n  // Combine the title and body into one clean text string for the embedding\n  const pageContent = `Issue #${number}: ${title}\\n\\n${body}`;\n\n  // Push to a new array, keeping the URL as metadata so you can link to it later\n  formattedIssues.push({\n    json: {\n      pageContent: pageContent.trim(),\n      metadata: {\n        source: url,\n        title: title,\n        issueNumber: number,\n        dataSource:\"github_issues\"\n      }\n    }\n  });\n}\n\n// Return the cleaned-up items\nreturn formattedIssues;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        240
+      ],
+      "id": "4029d38a-0536-441d-8369-1d80da1450c4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        176
+      ],
+      "id": "79b2a32a-b5e5-4bc1-85db-77d2798be904",
+      "name": "Supabase Vector Store2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vZSpKbYOUGXAleWl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        48,
+        736
+      ],
+      "id": "1745fa8b-f2d4-418c-b697-a392a9f6b4e7",
+      "name": "Embeddings Google Gemini2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "piinkWRy2XxXA1CL",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.pageContent }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source",
+                "value": "={{ $json.metadata.source }}"
+              },
+              {
+                "name": "title",
+                "value": "={{ $json.metadata.title }}"
+              },
+              {
+                "name": "issueNumber",
+                "value": "={{ $json.metadata.issueNumber }}"
+              },
+              {
+                "name": "dataSource",
+                "value": "={{ $json.metadata.dataSource }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        528
+      ],
+      "id": "424ecfd5-cd48-4239-854e-a9c3a9241525",
+      "name": "Default Data Loader2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        192,
+        -608
+      ],
+      "id": "1b38f3ee-39dd-4c6d-9ec4-ff7c1cef1549",
+      "name": "Split In Batches"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Replace Me",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -608
+      ],
+      "id": "60139fd6-3851-4a8d-8598-23854b19f471"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This is a final, robust parser for various Notion block types.\nconst contentItems = $input.all(); // All paginated results for the current page\nlet fullText = \"\";\n\n// Helper function to safely extract text from any rich_text array\nconst getTextFromRichText = (richText) => {\n  if (!richText || !Array.isArray(richText) || richText.length === 0) {\n    return '';\n  }\n  return richText.map(t => t.plain_text).join('');\n};\n\nfor (const item of contentItems) {\n  if (item.json.results) {\n    for (const block of item.json.results) {\n      let text = '';\n      // Explicitly handle each block type based on the Notion API structure\n      switch (block.type) {\n        case 'paragraph':\n          text = getTextFromRichText(block.paragraph.rich_text);\n          break;\n        case 'heading_1':\n          text = getTextFromRichText(block.heading_1.rich_text);\n          break;\n        case 'heading_2':\n          text = getTextFromRichText(block.heading_2.rich_text);\n          break;\n        case 'heading_3':\n          text = getTextFromRichText(block.heading_3.rich_text);\n          break;\n        case 'bulleted_list_item':\n          // FIX: Added backticks around the template literal\n          text = `- ${getTextFromRichText(block.bulleted_list_item.rich_text)}`;\n          break;\n        case 'numbered_list_item':\n          // FIX: Added backticks around the template literal\n          text = `1. ${getTextFromRichText(block.numbered_list_item.rich_text)}`;\n          break;\n        case 'quote':\n          text = getTextFromRichText(block.quote.rich_text);\n          break;\n        case 'to_do':\n          const checked = block.to_do.checked ? '[x]' : '[ ]';\n          text = `${checked} ${getTextFromRichText(block.to_do.rich_text)}`;\n          break;\n      }\n\n      if (text) {\n        // Use single newlines for list items, double for others\n        fullText += text + (block.type.includes('list_item') ? '\\n' : '\\n\\n');\n      }\n    }\n  }\n}\n\nconst finalContent = fullText.trim();\n\n// FIX: If the Notion page is completely empty, skip it entirely!\nif (!finalContent) {\n  return []; \n}\n\n// Return one item with only the pageContent\nreturn [{\n  json: {\n    pageContent: finalContent\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -688
+      ],
+      "id": "99ee44b4-2997-4549-bbbd-cf7751f1b959",
+      "name": "Code",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "url": "=https://api.notion.com/v1/blocks/{{ $json.id }}/children",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "start_cursor",
+                    "value": "={{ $response.body.next_cursor }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.has_more }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        656,
+        -656
+      ],
+      "id": "74f58d5d-6e38-4bad-a04c-db1caf20c4d8",
+      "name": "HTTP Request2",
+      "credentials": {
+        "notionApi": {
+          "id": "9KKSRw1N2dOssfQY",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        -48,
+        -640
+      ],
+      "id": "cf601d34-6590-422a-86a4-e5e3753f12bf",
+      "name": "Search a page",
+      "credentials": {
+        "notionApi": {
+          "id": "9KKSRw1N2dOssfQY",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.pageContent }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source",
+                "value": "={{ $('Search a page').item.json.url }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        -304
+      ],
+      "id": "9ea445fc-cb97-4bc1-bcbc-7b6f3c404fb6",
+      "name": "Default Data Loader1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        944,
+        -256
+      ],
+      "id": "f6c41751-97e6-4afd-8926-94d80ac3d075",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "piinkWRy2XxXA1CL",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1104,
+        -512
+      ],
+      "id": "9801b5b8-94e4-44d1-b610-f3acc128f859",
+      "name": "Supabase Vector Store1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vZSpKbYOUGXAleWl",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        0
+      ],
+      "id": "d06929a4-59df-4b75-a67d-9ad7d0c475fa",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "owner": {
+          "__rl": true,
+          "value": "divyaanshupal",
+          "mode": "list",
+          "cachedResultName": "divyaanshupal",
+          "cachedResultUrl": "https://github.com/divyaanshupal"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "System-Design",
+          "mode": "list",
+          "cachedResultName": "System-Design",
+          "cachedResultUrl": "https://github.com/divyaanshupal/System-Design"
+        },
+        "events": [
+          "issues"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.githubTrigger",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        240
+      ],
+      "id": "7acb1439-d77c-4c69-8212-a586a16da81d",
+      "name": "Github Trigger",
+      "webhookId": "487397e4-8a03-48b2-9041-3c24f8cddf8a",
+      "credentials": {
+        "githubApi": {
+          "id": "HjGlaOiDoSasYbei",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d9239cb5-46bd-45b8-b8d2-c33d70388d07",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "[NEW_ISSUE_DETECTED]",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        -1504
+      ],
+      "id": "afcd48d8-7b3c-4a10-b50c-1bc39686e8f1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hacktropia.app.n8n.cloud/webhook-test/assign-task",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "taskContext",
+              "value": "={{ $('Webhook1').item.json.body.summary }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $('Webhook1').item.json.body.priority }}"
+            },
+            {
+              "name": "agent_output",
+              "value": "={{ $('AI Agent1').item.json.output }}"
+            },
+            {
+              "name": "domain",
+              "value": "={{ $('Webhook1').item.json.body.domain }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1056,
+        -1664
+      ],
+      "id": "9096d0f8-18a6-4f25-afa0-99e098b38ef4",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1024,
+        -1408
+      ],
+      "id": "f067a1da-ccd5-4c8f-9c64-d8f053179a93",
+      "name": "Respond to Webhook",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -1200
+      ],
+      "id": "d1fd1290-e0c8-4dff-a900-f2574216e6a0",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "9LCvHPJOogGjrKW0",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1264,
+        -1648
+      ],
+      "id": "cc12f3b0-4f35-4568-a540-e7df810ac8b7",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Embeddings Google Gemini3": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store3",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store3": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get issues of a repository": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini2": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store2",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader2": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store2",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Replace Me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Me": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search a page": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader1": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        []
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Github Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get issues of a repository",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "823c217e-27ed-4db6-b4ab-8f75a3a55ed5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "31be9b41cb948289bed1a1a0d68bfe3b214be16ec34072aef3138dce21265c56"
+  },
+  "id": "fKgvuO4eCq3WqsB5",
+  "tags": []
+}
