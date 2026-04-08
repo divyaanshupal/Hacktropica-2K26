@@ -1,0 +1,699 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "assign-task",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "46d6c4b1-8fba-4e9b-81cc-65e0e22e7ed8",
+      "name": "Receive Task",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        320
+      ],
+      "webhookId": "c7f47650-d29b-4b0c-903d-46e943b7e033"
+    },
+    {
+      "parameters": {
+        "collection": "employees",
+        "options": {},
+        "query": "={\n  \"liveStatus.isPresentToday\": true,\n  \"expertise.skills\": \"{{ $json.body.domain || $json.query.domain || $json.domain }}\"\n}"
+      },
+      "id": "a3946e57-392e-426d-bcf9-27e0934f18df",
+      "name": "Fetch All Employees",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        -240,
+        320
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "r13klCBLCN9vHAjJ",
+          "name": "MongoDB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ea5a4dd5-00b8-4412-bc2c-b96138a3bdbb",
+              "name": "employee_ID",
+              "value": "={{ $json._id }}",
+              "type": "string"
+            },
+            {
+              "id": "472eaf38-bbe8-4689-800a-58ebc80ac4de",
+              "name": "Name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "c1a870c0-fcf7-457e-ba87-4303403d5906",
+              "name": "Past Work",
+              "value": "={{ $json.performance.resolvedTags }}",
+              "type": "array"
+            },
+            {
+              "id": "dd16ea82-c5d9-47bf-a109-57bdcb9986c8",
+              "name": "Current Task",
+              "value": "={{ $json.liveStatus.activeTaskTitle }}",
+              "type": "string"
+            },
+            {
+              "id": "7a329020-31ef-4b32-a7b5-0455f221533a",
+              "name": "current task criticality",
+              "value": "={{ $json.liveStatus.currentTaskCriticality }}",
+              "type": "number"
+            },
+            {
+              "id": "d505b95a-d399-49f0-a1f8-9a99728aeeb4",
+              "name": "work_load",
+              "value": "={{ $json.workload.workloadScore }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32,
+        320
+      ],
+      "id": "b5f360d7-4db8-4370-83fd-e4020bf74ad9",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Grab the live data from the Webhook node ('Receive Task')\nconst webhookNode = $('Receive Task').first();\n\n// If the webhook didn't fire (e.g., you clicked \"Execute\" manually), stop immediately.\nif (!webhookNode || !webhookNode.json) {\n  throw new Error(\"🚨 No data found. You MUST trigger this workflow via the Webhook (e.g., Postman). Manually clicking 'Execute' will not work here.\");\n}\n\n// 2. Aggressively hunt for the payload (n8n hides it in different places)\nlet taskData = webhookNode.json.body || webhookNode.json.query || webhookNode.json;\n\n// If Postman sent it as a raw string instead of an object, parse it\nif (typeof taskData === 'string') {\n    try { \n        taskData = JSON.parse(taskData); \n    } catch(e) {\n        throw new Error(`🚨 Failed to parse Webhook data. Ensure Postman is sending raw JSON. Received: ${taskData}`);\n    }\n}\n\n// 3. STRICT REQUIREMENT: The Webhook MUST provide the task context. ZERO HARDCODING.\nif (!taskData || (!taskData.taskContext && !taskData.task)) {\n    throw new Error(`🚨 Missing 'taskContext'. Please check your Postman JSON body. Exact data received by n8n: ${JSON.stringify(webhookNode.json)}`);\n}\n\n// 4. Get the clean employee list from the previous 'Edit Fields' node\nconst employeeList = $input.all().map(item => item.json);\n\n// 5. Package it together purely dynamically for Gemini\nreturn [{\n  json: {\n    system_prompt_data: `\nNEW TASK TO ASSIGN:\nContext: ${taskData.taskContext || taskData.task}\nDomain Required: ${taskData.domain || taskData.sector || \"Any\"}\nPriority: ${taskData.priority || \"Normal\"}\n\nAVAILABLE EMPLOYEES:\n${JSON.stringify(employeeList, null, 2)}\n    `\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        320
+      ],
+      "id": "02318de5-f8bc-40d2-8ab9-0b87a13f6471",
+      "name": "Prepare Prompt Data"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are an elite AI Project Manager routing tasks. \nYou will receive a NEW TASK and a JSON list of AVAILABLE EMPLOYEES.\n\nFollow this strict decision logic:\n1. CRITICALITY CHECK: If an employee's 'current task criticality' is 8, 9, or 10, DO NOT assign them the task. Skip them immediately.\n2. EXPERIENCE MATCH: Find an employee whose 'Past Work' semantically matches the New Task context.\n3. WORKLOAD TIE-BREAKER: If multiple people match, pick the one with the lowest 'work_load' score.\n4. PRIORITY SCORING: You must calculate the 'workloadScoreIncrease' based on the Priority provided in the task:\n   - 'low' priority: assign a number from 1 to 3\n   - 'normal' or 'medium' priority: assign a number from 4 to 6\n   - 'high' priority: assign a number from 7 to 8\n   - 'critical' priority: assign a number from 9 to 10\n5. DOMAIN TRANSLATION: You MUST map the task to EXACTLY ONE of these 6 strict domains:\n   - \"AI & Machine Learning\"\n   - \"Cybersecurity\"\n   - \"Backend Developer\"\n   - \"Frontend Developer\"\n   - \"DevOps\"\n   - \"Cloud\"\n\nSTRICT OUTPUT RULES:\nOutput ONLY valid JSON. No markdown tags, no markdown code blocks (do not use ```json), and no conversational text. \nOutput exactly this schema:\n{\n  \"employeeDbId\": \"INSERT_employee_ID_HERE\",\n  \"employeeName\": \"THE_NAME_HERE\",\n  \"assignedTaskSummary\": \"A short 3-5 word summary of the task to save to the database.\",\n  \"mappedDomain\": \"INSERT_STRICT_DOMAIN_FROM_RULE_5\",\n  \"reasoning\": \"A 1-sentence explanation of why they were chosen.\",\n  \"action\": {\n    \"workloadScoreIncrease\": <INSERT_NUMBER_BASED_ON_PRIORITY_RULE_4>\n  }\n}"
+            },
+            {
+              "content": "=={{ $json.system_prompt_data }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        320
+      ],
+      "id": "98df0fa5-93d9-4a41-a9e4-741bdade9a0c",
+      "name": "Message a model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "s7DpDHwUVMIiMtc0",
+          "name": "atulya2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "employees",
+        "updateKey": "_id",
+        "fields": "=workload.activeTasksCount, workload.workloadScore, workload.taskQueue, liveStatus.activeTaskTitle, liveStatus.currentTaskCriticality, liveStatus.activeIssueId, latestAiReasoning",
+        "options": {
+          "useDotNotation": true
+        }
+      },
+      "id": "9a18c789-4ed6-43ec-965c-9d2bcbfcee92",
+      "name": "Update Employee Tasks",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        1808,
+        160
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "q7ga59Lu6mAtprGf",
+          "name": "MongoDB account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Grab the original task details\nconst webhookData = $('Receive Task').first().json.body || $('Receive Task').first().json.query || $('Receive Task').first().json;\n\n// 2. Grab the AI's smart decisions\nconst aiData = $input.first().json;\nlet aiText = aiData.text || aiData.content?.parts?.[0]?.text || \"\";\naiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();\nconst parsedData = JSON.parse(aiText);\n\n// 3. Grab the score we calculated\nconst sharedScore = parsedData.action?.workloadScoreIncrease || 5;\n\n// 4. Generate the current Timestamp (n8n's version of timestamps: true)\nconst now = new Date().toISOString();\n\n// 5. Build the complete Ticket, matching your Mongoose Schema exactly\nreturn {\n  json: {\n    title: parsedData.assignedTaskSummary,\n    description: webhookData.taskContext || \"\",\n    assignedTo: [parsedData.employeeDbId.replace(/[^a-zA-Z0-9]/g, '')],\n    employeeName: parsedData.employeeName,  // 👈 I ADDED THIS LINE RIGHT HERE!\n    criticality: sharedScore,\n    sector: [parsedData.mappedDomain],\n    status: 'open',\n    \n    // 👇 MANUALLY FORCING THE MONGOOSE DEFAULTS\n    startedAt: null,\n    completedAt: null,\n    resolutionSummary: \"\",\n    rootCause: \"\",\n    createdAt: now,\n    updatedAt: now\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        320
+      ],
+      "id": "4e844d61-a258-4247-8657-e6af6f4dd0c4",
+      "name": "Parse & Prep Task DB"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "tasks",
+        "fields": "title,description,assignedTo,criticality,sector,status,startedAt,completedAt,resolutionSummary,rootCause,createdAt,updatedAt",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        976,
+        288
+      ],
+      "id": "ee4163f2-db9a-42e7-99e2-2b4e02093290",
+      "name": "Create Task Record",
+      "credentials": {
+        "mongoDb": {
+          "id": "q7ga59Lu6mAtprGf",
+          "name": "MongoDB account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Grab the NEW Task ID we just generated from MongoDB!\nconst newTask = $input.first().json;\nconst newTaskId = newTask._id;\n\n// 2. Grab the AI's data\nconst aiDataStr = $('Message a model1').first().json.text || $('Message a model1').first().json.content?.parts?.[0]?.text;\nconst parsedData = JSON.parse(aiDataStr.replace(/```json/g, '').replace(/```/g, '').trim());\n\n// 👇 FIXED: We grab the official MongoDB ID and clean it!\nconst targetEmployeeDbId = parsedData.employeeDbId.replace(/[^a-zA-Z0-9]/g, '');\nconst sharedScore = parsedData.action?.workloadScoreIncrease || 5;\n\n// 3. Grab the employee's CURRENT state\nconst allEmployees = $('Fetch All Employees').all();\nlet currentTasks = 0, currentScore = 0, currentQueue = [], currentActiveTask = null, currentActiveIssueId = null, currentCriticality = 0;\n\nfor (const emp of allEmployees) {\n    // 👇 FIXED: We match using the MongoDB _id now!\n    if (emp.json._id === targetEmployeeDbId) {\n        currentTasks = emp.json.workload?.activeTasksCount || 0;\n        currentScore = emp.json.workload?.workloadScore || 0;\n        currentQueue = emp.json.workload?.taskQueue || [];\n        currentActiveTask = emp.json.liveStatus?.activeTaskTitle || null;\n        currentActiveIssueId = emp.json.liveStatus?.activeIssueId || null;\n        currentCriticality = emp.json.liveStatus?.currentTaskCriticality || 0;\n        break;\n    }\n}\n\n// --------------------------------------------------------------------\n// 🔥 4. THE TRAFFIC LIGHT PROTOCOL \n// --------------------------------------------------------------------\nlet finalActiveTask = currentActiveTask;\nlet finalCriticality = currentCriticality;\nlet finalActiveIssueId = currentActiveIssueId;\nconst nonTaskStates = [\"On Lunch Break\", \"Offline\", \"None\", null]; \n\nif (sharedScore <= 3) {\n    currentQueue.push({\n        issueId: newTaskId,\n        taskTitle: parsedData.assignedTaskSummary,\n        estimatedCriticality: sharedScore,\n        addedToQueueAt: new Date().toISOString()\n    });\n} else {\n    if (currentActiveTask && !nonTaskStates.includes(currentActiveTask)) {\n        currentQueue.push({\n            issueId: currentActiveIssueId, \n            taskTitle: currentActiveTask,\n            estimatedCriticality: currentCriticality,\n            addedToQueueAt: new Date().toISOString()\n        });\n    }\n    finalActiveTask = parsedData.assignedTaskSummary;\n    finalCriticality = sharedScore;\n    finalActiveIssueId = newTaskId; \n}\n\n// 5. Output the exact fields to update the Employee DB\nreturn {\n  json: {\n    _id: targetEmployeeDbId, // 👈 FIXED: We output the _id for MongoDB!\n    \"workload.activeTasksCount\": currentTasks + 1,\n    \"workload.workloadScore\": currentScore + sharedScore,\n    \"workload.taskQueue\": currentQueue,\n    \"liveStatus.activeTaskTitle\": finalActiveTask,\n    \"liveStatus.currentTaskCriticality\": finalCriticality,\n    \"liveStatus.activeIssueId\": finalActiveIssueId,\n    \"latestAiReasoning\": parsedData.reasoning\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        160
+      ],
+      "id": "64acb2c7-fe13-41ed-97e6-e9fc7e75ccaf",
+      "name": "Traffic Light Logic"
+    },
+    {
+      "parameters": {
+        "jsCode": "const task = $input.first().json;\n\nconst aiDataStr = $('Message a model1').first().json.text || $('Message a model1').first().json.content?.parts?.[0]?.text;\nconst aiParsed = JSON.parse(aiDataStr.replace(/```json/g, '').replace(/```/g, '').trim());\n\n// 2. Extract the human-readable name for Vector Search\nconst extractedName = aiParsed.employeeName;\n\n// 3. Package a FLAT schema. \n// n8n automatically embeds the \"text\" key and turns everything else into Metadata!\nreturn {\n    json: {\n        text: $input.first().json.description, \n        id: task._id.toString(),\n        criticality: task.criticality,\n        sector: task.sector ? task.sector[0] : null,\n        summary: task.title,\n        assignedTo: extractedName, \n        status: task.status\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        640
+      ],
+      "id": "7b196a56-7a26-42a1-9eef-50475cac9f8e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "mongoCollection": {
+          "__rl": true,
+          "value": "task_vectors",
+          "mode": "list",
+          "cachedResultName": "task_vectors"
+        },
+        "metadata_field": "metadata",
+        "vectorIndexName": "vector_index",
+        "embeddingBatchSize": 5,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreMongoDBAtlas",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        640
+      ],
+      "id": "73462217-171b-41b8-ba20-a24127ef7831",
+      "name": "MongoDB Atlas Vector Store",
+      "credentials": {
+        "mongoDb": {
+          "id": "q7ga59Lu6mAtprGf",
+          "name": "MongoDB account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        896
+      ],
+      "id": "5439d9a4-9f77-4ffb-9663-5b0c597429e6",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Ihc38kK7xyJhlhpg",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  {\n    \"issueId\": $('Create Task Record').first().json.id,\n    \"taskTitle\": $('Create Task Record').first().json.title,\n    \"latestAiReasoning\": $json.latestAiReasoning\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        160
+      ],
+      "id": "2e980864-f8c0-43fd-89b1-645735b8dc4c",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "text",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "text",
+                "value": "={{ $json.text }}"
+              },
+              {
+                "name": "assignedTo",
+                "value": "={{ $json.assignedTo }}"
+              },
+              {
+                "name": "status",
+                "value": "={{ $json.status }}"
+              },
+              {
+                "name": "criticality",
+                "value": "={{ $json.criticality }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1888,
+        896
+      ],
+      "id": "b5ec1189-a4e1-4c9c-9fc4-79a1b308f886",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1e7b76c3-af2d-460a-9270-e344a38195d3",
+              "leftValue": "={{ $('Receive Task').item.json.body.priority }}",
+              "rightValue": "critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "17347c50-7579-46c7-ae41-d6f9bf42d82a",
+              "leftValue": "={{ $('Receive Task').item.json.body.priority }}",
+              "rightValue": "Critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        -48
+      ],
+      "id": "a4e85e78-4adb-47df-8653-5bb13caf6d10",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6a1c6af2-f44f-4bfe-a952-9292c0a7af7a",
+              "name": "voice_text",
+              "value": "={{ 'Hello ' + $('Parse & Prep Task DB').first().json.employeeName + ', a critical task has been assigned. It is: ' + $('Parse & Prep Task DB').first().json.description + '. Please take immediate action.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1504,
+        -240
+      ],
+      "id": "a5b8decd-ff8f-455a-a38e-b0bc254d7f52",
+      "name": "Edit Fields1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/aGb0TwKthRLQTPThYRqI",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "xi-api-key",
+              "value": "sk_8c91dcb2b114187fcaff89436c4f9ac6c7606fecdc904dce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.voice_text }}"
+            },
+            {
+              "name": "model_id",
+              "value": "eleven_multilingual_v2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1712,
+        -240
+      ],
+      "id": "96fae945-f7c9-42f5-b551-ff8e51d4809c",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "uploadFile",
+        "resource_type_file": "video",
+        "additionalFieldsFile": {}
+      },
+      "type": "n8n-nodes-cloudinary.cloudinary",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        -240
+      ],
+      "id": "e0b1eb6d-cfc9-4577-ad0c-88ddbb43627a",
+      "name": "Upload an asset from file data",
+      "credentials": {
+        "cloudinaryApi": {
+          "id": "NfxkAhsLgOVUxWgs",
+          "name": "Cloudinary account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Safely grab the raw employee name from our earlier database parsing node\nlet rawName = $('Parse & Prep Task DB').first().json.employeeName || \"\";\n\n// 2. Normalize it to purely lowercase so our exact matching doesn't fail due to typos\nlet lowerName = rawName.toLowerCase().trim();\n\n// 3. MAGIC FORMATTER: Capitalize the first letter of every word (Title Case)\nlet formattedName = lowerName\n  .split(' ')\n  .map(word => word ? word.charAt(0).toUpperCase() + word.slice(1) : \"\")\n  .join(' ');\n\n// 4. The Phone Number Router Logic\nlet contactNumber = \"Number not found\";\n\nif (lowerName === \"atulya srivastava\" || lowerName === \"rakesh mishra\") {\n    contactNumber = \"+91 63944 14472\";\n    \n} else if (lowerName === \"harsh\" || lowerName === \"priya sharma\") {\n    contactNumber = \"9353881834\";\n    \n} else if (\n    lowerName === \"rohan gupta\" || \n    lowerName === \"sneha desai\" || \n    lowerName === \"nirmal mishra\" ||  // Guarding against common typos!\n    lowerName === \"abhishek shukla\"\n) {\n    contactNumber = \"7235066343\";\n    \n} else if (lowerName === \"divyanshu pal\" || lowerName === \"shreyanshi srivastava\") {\n    contactNumber = \"6387811379\";\n}\n\n// 5. Output the result! \n// We use ...incomingData so we don't accidentally delete your Cloudinary URL!\nconst incomingData = $input.first().json;\n\nreturn {\n  json: {\n    ...incomingData,\n    employeeNameFormatted: formattedName,\n    contactNumber: contactNumber\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        -240
+      ],
+      "id": "97108a37-af09-415d-a42a-0b811dcd6798",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "resource": "call",
+        "from": "+16625640637",
+        "to": "=+91{{ $json.contactNumber }}",
+        "twiml": true,
+        "message": "=<Response>   <Play>{{$json[\"secure_url\"]}}</Play> </Response>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2320,
+        -240
+      ],
+      "id": "52948ce3-6b10-4932-9be0-5d0fe7e1b58d",
+      "name": "Make a call",
+      "credentials": {
+        "twilioApi": {
+          "id": "fbYXMiqBeuIE1Ts6",
+          "name": "Twilio account 2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Task": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Employees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Employees": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prompt Data": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Parse & Prep Task DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Employee Tasks": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Prep Task DB": {
+      "main": [
+        [
+          {
+            "node": "Create Task Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Task Record": {
+      "main": [
+        [
+          {
+            "node": "Traffic Light Logic",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traffic Light Logic": {
+      "main": [
+        [
+          {
+            "node": "Update Employee Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "MongoDB Atlas Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "MongoDB Atlas Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "MongoDB Atlas Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Upload an asset from file data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload an asset from file data": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Make a call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33e6112248391fa02423609c7b9af197a796a1789e7089b69c3801cbb7992472"
+  }
+}
